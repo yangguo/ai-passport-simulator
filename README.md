@@ -6,7 +6,28 @@ The first version is a **desktop simulation and test harness**, not a hardware e
 
 ## Status
 
-Requirements and design documents only. No simulator executable or build command exists yet.
+P0 simulator implemented and green on macOS (clean-checkout configure, build,
+and all 15 tests pass) with Ubuntu CI configured. See the
+[device checklist](docs/DEVICE_CHECKLIST.md) for what simulation cannot verify.
+
+## Build, test, and run (verified on macOS)
+
+Prerequisites: `brew install cmake ninja pkg-config sdl2` (first configure
+downloads pinned LVGL/doctest/JSON/stb sources automatically).
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+./build/app/passport-simulator --scenario tests/scenarios/ptt-normal.json
+./build/app/passport-replay --scenario tests/scenarios/stt-retained-through-tts.json --screenshot out.png
+```
+
+`passport-replay` exit codes: 0 ok, 2 bad usage, 3 invalid fixture.
+`--screenshot` renders the 240×320 viewport headlessly; add `--at-ms N` for a
+checkpoint and `--alert TEXT` for an alert overlay. Goldens live in
+`tests/golden/`; see [Development guide](docs/DEVELOPMENT.md) for the update
+workflow.
 
 ## Project documents
 
@@ -27,15 +48,16 @@ Requirements and design documents only. No simulator executable or build command
 
 The simulator must label mocked signals as simulated and must never report simulated audio, network, battery, or power results as hardware verification.
 
-## Planned technology
+## Implemented technology (P0 pins)
 
-- C++17 host application and CMake
-- LVGL 9.5, pinned to the firmware's resolved version
-- SDL2 desktop display/input backend
-- CTest for host tests; optional Python helpers for scenario generation and image comparison
-- GitHub Actions on Ubuntu; macOS developer workflow
+- C++17 host application and CMake (3.28+)
+- LVGL v9.5.0 (`85aa60d`), SDL release-2.32.10, doctest v2.5.3,
+  nlohmann/json v3.12.0, stb image I/O (`2c980bb`) — all fetched automatically
+- CTest host tests + `compare-png` golden regression; GitHub Actions on Ubuntu
+- Fonts (P0): built-in Montserrat 14 only — CJK renders as placeholder boxes
+  until a licensed CJK font lands; see the device checklist
 
-Dependencies and commands are provisional until the first implementation milestone pins and verifies them. This repository does not yet select a software license; make that decision before accepting code contributions or redistributing firmware-derived assets.
+This repository does not yet select a software license; make that decision before accepting code contributions or redistributing firmware-derived assets.
 
 ## Relationship to firmware
 

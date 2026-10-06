@@ -1,0 +1,18 @@
+{
+  "scenario_version": 1,
+  "name": "stt-retained-through-tts",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 300, "type": "stt", "text": "第一句用户话"},
+    {"at_ms": 600, "type": "state", "value": "thinking"},
+    {"at_ms": 900, "type": "tts_start"},
+    {"at_ms": 1100, "type": "tts_sentence", "text": "助手第一句。"},
+    {"at_ms": 2000, "type": "tts_sentence", "text": "助手第二句。"},
+    {"at_ms": 3000, "type": "tts_sentence", "text": "助手第三句。"},
+    {"at_ms": 4000, "type": "tts_stop"},
+    {"at_ms": 4200, "type": "state", "value": "idle"},
+    {"at_ms": 5000, "type": "state", "value": "listening"},
+    {"at_ms": 5300, "type": "stt", "text": "第二句用户话替换"}
+  ]
+}

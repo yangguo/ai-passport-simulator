@@ -1,0 +1,14 @@
+{
+  "scenario_version": 1,
+  "name": "long-mixed-text-paging",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 300, "type": "stt", "text": "请详细介绍一下"},
+    {"at_ms": 600, "type": "state", "value": "thinking"},
+    {"at_ms": 900, "type": "tts_start"},
+    {"at_ms": 1100, "type": "tts_sentence", "text": "菊花茶有清热解毒的功效，lavender 也有舒缓作用。冲泡时 water temperature 控制在 85°C 左右，steep for 3-5 minutes⏳。"},
+    {"at_ms": 3600, "type": "tts_sentence", "text": "第二段 mixed content：维生素 C 含量 high，适合 daily drink 🍵，但脾胃虚寒者慎用。"},
+    {"at_ms": 6100, "type": "tts_stop"}
+  ]
+}

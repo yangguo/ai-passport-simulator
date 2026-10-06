@@ -1,0 +1,9 @@
+# SIMULATED fixture replay: ptt-normal
+[0] state listening -> activity=Listening user="" assistant=""
+[450] stt "明天下午天气怎么样？" -> activity=Listening user="明天下午天气怎么样？" assistant=""
+[700] state thinking -> activity=Thinking user="明天下午天气怎么样？" assistant=""
+[1200] tts_start -> activity=Speaking user="明天下午天气怎么样？" assistant=""
+[1400] tts_sentence "明天下午可能会下雨。" -> activity=Speaking user="明天下午天气怎么样？" assistant="明天下午可能会下雨。"
+[2500] tts_sentence "记得带伞。" -> activity=Speaking user="明天下午天气怎么样？" assistant="明天下午可能会下雨。 记得带伞。"
+[3600] tts_stop -> activity=None user="明天下午天气怎么样？" assistant="明天下午可能会下雨。 记得带伞。"
+[3800] state idle -> activity=None user="明天下午天气怎么样？" assistant="明天下午可能会下雨。 记得带伞。"
