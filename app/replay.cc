@@ -9,6 +9,7 @@
 #include "passport_sim/lvgl_shell.h"
 #include "passport_sim/scenario_runner.h"
 #include "passport_sim/screenshot_png.h"
+#include "render_state.h"
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
 
@@ -78,10 +79,11 @@ int main(int argc, char** argv) {
       run2.load(scenario);
       while (run2.next_at_ms() <= at_ms && run2.step()) {
       }
-      shell.render(captions2, run2.activity());
+      RenderScenario(shell, run2);
     } else {
-      shell.render(captions, runner.activity());
+      RenderScenario(shell, runner);
     }
+    // Manual overlay flag overrides transport state (e.g. low-battery golden).
     if (!alert_text.empty()) shell.set_alert(alert_text.c_str());
     shell.tick(100);
     if (!passport_sim::SaveViewportPng(shot_path, shell.framebuffer(),

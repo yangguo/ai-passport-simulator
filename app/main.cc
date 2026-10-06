@@ -16,6 +16,7 @@
 
 #include "passport_sim/button_input.h"
 #include "passport_sim/lvgl_shell.h"
+#include "render_state.h"
 #include "passport_sim/scenario_runner.h"
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
@@ -235,7 +236,7 @@ int main(int argc, char** argv) {
     }
 
     // LVGL device viewport: same pixels the headless --screenshot path writes.
-    shell.render(captions, runner.activity());
+    RenderScenario(shell, runner);
     shell.tick(dt);
     SDL_UpdateTexture(device_tex, nullptr, shell.framebuffer(), kDeviceW * 2);
     SDL_SetRenderDrawColor(renderer, 20, 20, 24, 255);

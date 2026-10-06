@@ -101,6 +101,7 @@ struct LvglShell::Impl {
   lv_obj_t* assistant = nullptr;
   lv_obj_t* alert_box = nullptr;
   lv_obj_t* alert_label = nullptr;
+  lv_obj_t* waterline = nullptr;
   std::string last_user;
   std::string last_assistant;
   uint32_t page = 0;
@@ -156,6 +157,11 @@ LvglShell::LvglShell() : impl_(new Impl()) {
   lv_obj_set_style_text_color(m.alert_label, lv_color_hex(0xE43B2F), 0);
   lv_obj_add_flag(m.alert_box, LV_OBJ_FLAG_HIDDEN);
 
+  // Audio queue waterline: same activity-line rect, preempted by alerts.
+  m.waterline = lv_label_create(screen);
+  lv_label_set_long_mode(m.waterline, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_color(m.waterline, lv_color_hex(0x55707A), 0);
+
   lv_obj_t* sim = lv_label_create(screen);
   lv_label_set_text(sim, "SIM");
   lv_obj_set_style_text_color(sim, lv_color_hex(0x55707A), 0);
@@ -177,12 +183,24 @@ void LvglShell::set_alert(const char* text) {
   lv_label_set_long_mode(m.alert_label, LV_LABEL_LONG_WRAP);
   lv_label_set_text(m.alert_label, text);
   lv_obj_clear_flag(m.alert_box, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(m.waterline, LV_OBJ_FLAG_HIDDEN);  // alert preempts waterline
+  lv_refr_now(m.disp);
+  MaskFrame();
+}
+
+void LvglShell::set_status_suffix(const char* text) {
+  Impl& m = *impl_;
+  const passport_rect_t& line = m.last_rects.activity_line;
+  lv_obj_set_pos(m.waterline, line.x, line.y);
+  lv_obj_set_width(m.waterline, line.width);
+  lv_label_set_text(m.waterline, text);
   lv_refr_now(m.disp);
   MaskFrame();
 }
 
 void LvglShell::clear_alert() {
   lv_obj_add_flag(impl_->alert_box, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(impl_->waterline, LV_OBJ_FLAG_HIDDEN);
   lv_refr_now(impl_->disp);
   MaskFrame();
 }

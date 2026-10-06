@@ -31,6 +31,9 @@ class LvglShell {
   // Alert overlay in the activity-line rect (hidden by default).
   void set_alert(const char* text);
   void clear_alert();
+  // Audio queue waterline in the same rect; hidden while an alert is shown.
+  // Position refreshes from the last render()'s layout.
+  void set_status_suffix(const char* text);
 
  private:
   void apply_page();
