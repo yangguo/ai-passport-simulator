@@ -9,10 +9,13 @@
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
 
+using passport_sim::AudioPipelineMock;
+using passport_sim::AudioQueue;
 using passport_sim::ButtonInput;
 using passport_sim::CaptionBuffers;
 using passport_sim::ScenarioRunner;
 using passport_sim::SettingsStore;
+using passport_sim::TransportMock;
 using passport_sim::VirtualClock;
 
 namespace {
@@ -22,7 +25,9 @@ struct Harness {
   CaptionBuffers captions;
   ButtonInput buttons{clock};
   SettingsStore settings;
-  ScenarioRunner runner{clock, captions, buttons, settings};
+  TransportMock transport;
+  AudioPipelineMock audio;
+  ScenarioRunner runner{clock, captions, buttons, settings, transport, audio};
 };
 
 }  // namespace
@@ -128,7 +133,9 @@ TEST_CASE("all ten starter fixtures load and replay") {
                          "packet-gap-reorder-queue-full",
                          "missing-battery-low-alert",
                          "menu-open-close",
-                         "dim-sleep-wake"};
+                         "dim-sleep-wake",
+                         "transport-recovery",
+                         "queue-saturation"};
   for (const char* n : names) {
     Harness h;
     const std::string path =
@@ -139,4 +146,64 @@ TEST_CASE("all ten starter fixtures load and replay") {
     h.runner.run();
     CHECK_FALSE(h.runner.log().empty());
   }
+}
+
+TEST_CASE("transport rejects bad action, missing reason, bad queue") {
+  Harness h;
+  auto a = h.runner.load("tests/scenarios/_bad_transport_action.json");
+  CHECK_FALSE(a.ok);
+  CHECK(a.error.find("unknown transport action") != std::string::npos);
+  auto b = h.runner.load("tests/scenarios/_bad_transport_reason.json");
+  CHECK_FALSE(b.ok);
+  auto c = h.runner.load("tests/scenarios/_bad_transport_queue.json");
+  CHECK_FALSE(c.ok);
+  CHECK(c.error.find("unknown queue") != std::string::npos);
+}
+
+TEST_CASE("transport down clears thinking, recover does not restore it") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-smoke.json").ok);
+  REQUIRE(h.runner.step());  // listening
+  REQUIRE(h.runner.step());  // thinking
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());  // down
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+  CHECK(h.runner.transport().error_message() == "wifi lost");
+  REQUIRE(h.runner.step());  // recover
+  CHECK(h.runner.activity() == PassportActivity::kNone);  // NOT restored
+  CHECK(h.runner.transport().channel_open());
+  REQUIRE(h.runner.step());  // listening again
+  CHECK(h.runner.activity() == PassportActivity::kListening);
+}
+
+TEST_CASE("captions survive a transport outage") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-recovery.json").ok);
+  h.runner.run();
+  CHECK(h.captions.user() == "那明天呢");
+  CHECK(h.captions.assistant() == "明天晴。");
+  CHECK(h.runner.log().find("link=Down") != std::string::npos);
+  CHECK(h.runner.log().find("link=Up") != std::string::npos);
+}
+
+TEST_CASE("saturated send queue drops but TTS still completes") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/queue-saturation.json").ok);
+  h.runner.run();
+  CHECK(h.audio.counters(passport_sim::AudioQueue::Send).depth == 0);
+  CHECK(h.audio.counters(passport_sim::AudioQueue::Send).dropped == 5);
+  CHECK(h.captions.assistant() == "第一条。");
+}
+
+TEST_CASE("decode burst caps depth and counts drops") {
+  Harness h;
+  REQUIRE(
+      h.runner.load("tests/scenarios/packet-gap-reorder-queue-full.json").ok);
+  h.runner.run();
+  const auto& c = h.audio.counters(passport_sim::AudioQueue::Decode);
+  CHECK(c.depth == 20);
+  CHECK(c.dropped == 8);
+  CHECK(c.gaps == 3);
+  CHECK(c.reordered == 1);
+  CHECK(h.captions.assistant().find("第三条通知") != std::string::npos);
 }

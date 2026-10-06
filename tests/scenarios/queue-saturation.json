@@ -1,0 +1,307 @@
+{
+  "scenario_version": 1,
+  "name": "queue-saturation",
+  "meta": {
+    "simulated": true
+  },
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "state",
+      "value": "listening"
+    },
+    {
+      "at_ms": 300,
+      "type": "stt",
+      "text": "播报新闻"
+    },
+    {
+      "at_ms": 600,
+      "type": "state",
+      "value": "thinking"
+    },
+    {
+      "at_ms": 900,
+      "type": "tts_start"
+    },
+    {
+      "at_ms": 1100,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 0
+    },
+    {
+      "at_ms": 1110,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 1
+    },
+    {
+      "at_ms": 1120,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 2
+    },
+    {
+      "at_ms": 1130,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 3
+    },
+    {
+      "at_ms": 1140,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 4
+    },
+    {
+      "at_ms": 1150,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 5
+    },
+    {
+      "at_ms": 1160,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 6
+    },
+    {
+      "at_ms": 1170,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 7
+    },
+    {
+      "at_ms": 1180,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 8
+    },
+    {
+      "at_ms": 1190,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 9
+    },
+    {
+      "at_ms": 1200,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 10
+    },
+    {
+      "at_ms": 1210,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 11
+    },
+    {
+      "at_ms": 1220,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 12
+    },
+    {
+      "at_ms": 1230,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 13
+    },
+    {
+      "at_ms": 1240,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 14
+    },
+    {
+      "at_ms": 1250,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 15
+    },
+    {
+      "at_ms": 1260,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 16
+    },
+    {
+      "at_ms": 1270,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 17
+    },
+    {
+      "at_ms": 1280,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 18
+    },
+    {
+      "at_ms": 1290,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 19
+    },
+    {
+      "at_ms": 1300,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 20
+    },
+    {
+      "at_ms": 1310,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 21
+    },
+    {
+      "at_ms": 1320,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 22
+    },
+    {
+      "at_ms": 1330,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 23
+    },
+    {
+      "at_ms": 1340,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 24
+    },
+    {
+      "at_ms": 1350,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 25
+    },
+    {
+      "at_ms": 1360,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 26
+    },
+    {
+      "at_ms": 1370,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 27
+    },
+    {
+      "at_ms": 1380,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 28
+    },
+    {
+      "at_ms": 1390,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 29
+    },
+    {
+      "at_ms": 1400,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 30
+    },
+    {
+      "at_ms": 1410,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 31
+    },
+    {
+      "at_ms": 1420,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 32
+    },
+    {
+      "at_ms": 1430,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 33
+    },
+    {
+      "at_ms": 1440,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 34
+    },
+    {
+      "at_ms": 1450,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 35
+    },
+    {
+      "at_ms": 1460,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 36
+    },
+    {
+      "at_ms": 1470,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 37
+    },
+    {
+      "at_ms": 1480,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 38
+    },
+    {
+      "at_ms": 1490,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 39
+    },
+    {
+      "at_ms": 1500,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 40
+    },
+    {
+      "at_ms": 1510,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 41
+    },
+    {
+      "at_ms": 1520,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 42
+    },
+    {
+      "at_ms": 1530,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 43
+    },
+    {
+      "at_ms": 1540,
+      "type": "audio_packet",
+      "queue": "send",
+      "seq": 44
+    },
+    {
+      "at_ms": 2000,
+      "type": "tts_sentence",
+      "text": "第一条。"
+    },
+    {
+      "at_ms": 2800,
+      "type": "tts_stop"
+    }
+  ]
+}
