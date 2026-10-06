@@ -14,8 +14,8 @@
 
 #include <SDL.h>
 
-#include "layout.h"
 #include "passport_sim/button_input.h"
+#include "passport_sim/lvgl_shell.h"
 #include "passport_sim/scenario_runner.h"
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
@@ -62,13 +62,6 @@ const char* ButtonEventName(passport_sim::ButtonEvent e) {
   }
 }
 
-void DrawRect(SDL_Renderer* r, const passport_rect_t& rc, Uint8 cr, Uint8 cg,
-              Uint8 cb) {
-  SDL_Rect s{rc.x, rc.y, rc.width, rc.height};
-  SDL_SetRenderDrawColor(r, cr, cg, cb, 255);
-  SDL_RenderDrawRect(r, &s);
-}
-
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -97,7 +90,6 @@ int main(int argc, char** argv) {
     std::cerr << "invalid fixture: " << loaded.error << "\n";
     return 3;
   }
-  const passport_sim::Layout layout;
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -121,6 +113,17 @@ int main(int argc, char** argv) {
     return 2;
   }
   SDL_RenderSetLogicalSize(renderer, kDeviceW, kDeviceH + kToolbarH);
+  SDL_Texture* device_tex = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, kDeviceW,
+      kDeviceH);
+  if (!device_tex) {
+    std::cerr << "SDL_CreateTexture failed: " << SDL_GetError() << "\n";
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 2;
+  }
+  passport_sim::LvglShell shell;
 
   const ToolbarButton toolbar[] = {
       {{10, kDeviceH + 6, 60, 28}, passport_sim::Button::Up, "UP"},
@@ -228,22 +231,14 @@ int main(int argc, char** argv) {
       clock.advance_to(clock.now_ms() + dt);
     }
 
-    // Device viewport outlines from the shared layout module.
-    const passport_sim::LayoutRects rects = layout.compute(runner.activity());
+    // LVGL device viewport: same pixels the headless --screenshot path writes.
+    shell.render(captions, runner.activity());
+    shell.tick(dt);
+    SDL_UpdateTexture(device_tex, nullptr, shell.framebuffer(), kDeviceW * 2);
     SDL_SetRenderDrawColor(renderer, 20, 20, 24, 255);
     SDL_RenderClear(renderer);
-    DrawRect(renderer, rects.safe, 150, 150, 150);
-    DrawRect(renderer, rects.subtitle_viewport, 80, 190, 60);
-    DrawRect(renderer, rects.activity_line, 90, 140, 230);
-    // Expression placeholder: centered 32x32 idle, shrunk 16x16 top when
-    // caption-priority.
-    passport_rect_t face{};
-    if (rects.caption_priority) {
-      face = {kDeviceW / 2 - 8, rects.safe.y + 2, 16, 16};
-    } else {
-      face = {kDeviceW / 2 - 16, rects.safe.y + 24, 32, 32};
-    }
-    DrawRect(renderer, face, 240, 240, 240);
+    SDL_Rect device_rect{0, 0, kDeviceW, kDeviceH};
+    SDL_RenderCopy(renderer, device_tex, nullptr, &device_rect);
     // Toolbar buttons (pressed button filled).
     for (const auto& t : toolbar) {
       const bool active =
@@ -272,6 +267,7 @@ int main(int argc, char** argv) {
     SDL_Delay(16);
   }
 
+  SDL_DestroyTexture(device_tex);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
