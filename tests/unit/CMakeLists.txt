@@ -5,3 +5,5 @@ function(add_passport_test name)
 endfunction()
 
 add_passport_test(test_smoke test_smoke.cc)
+add_passport_test(test_geometry test_geometry.cc)
+target_link_libraries(test_geometry PRIVATE geometry)
