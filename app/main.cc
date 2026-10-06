@@ -84,7 +84,10 @@ int main(int argc, char** argv) {
   passport_sim::CaptionBuffers captions;
   passport_sim::ButtonInput buttons(clock);
   passport_sim::SettingsStore settings;
-  passport_sim::ScenarioRunner runner(clock, captions, buttons, settings);
+  passport_sim::TransportMock transport;
+  passport_sim::AudioPipelineMock audio;
+  passport_sim::ScenarioRunner runner(clock, captions, buttons, settings,
+                                      transport, audio);
   const passport_sim::LoadResult loaded = runner.load(scenario);
   if (!loaded.ok) {
     std::cerr << "invalid fixture: " << loaded.error << "\n";

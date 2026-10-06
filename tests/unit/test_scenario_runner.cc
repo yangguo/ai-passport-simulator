@@ -9,10 +9,12 @@
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
 
+using passport_sim::AudioPipelineMock;
 using passport_sim::ButtonInput;
 using passport_sim::CaptionBuffers;
 using passport_sim::ScenarioRunner;
 using passport_sim::SettingsStore;
+using passport_sim::TransportMock;
 using passport_sim::VirtualClock;
 
 namespace {
@@ -22,7 +24,9 @@ struct Harness {
   CaptionBuffers captions;
   ButtonInput buttons{clock};
   SettingsStore settings;
-  ScenarioRunner runner{clock, captions, buttons, settings};
+  TransportMock transport;
+  AudioPipelineMock audio;
+  ScenarioRunner runner{clock, captions, buttons, settings, transport, audio};
 };
 
 }  // namespace
@@ -139,4 +143,32 @@ TEST_CASE("all ten starter fixtures load and replay") {
     h.runner.run();
     CHECK_FALSE(h.runner.log().empty());
   }
+}
+
+TEST_CASE("transport rejects bad action, missing reason, bad queue") {
+  Harness h;
+  auto a = h.runner.load("tests/scenarios/_bad_transport_action.json");
+  CHECK_FALSE(a.ok);
+  CHECK(a.error.find("unknown transport action") != std::string::npos);
+  auto b = h.runner.load("tests/scenarios/_bad_transport_reason.json");
+  CHECK_FALSE(b.ok);
+  auto c = h.runner.load("tests/scenarios/_bad_transport_queue.json");
+  CHECK_FALSE(c.ok);
+  CHECK(c.error.find("unknown queue") != std::string::npos);
+}
+
+TEST_CASE("transport down clears thinking, recover does not restore it") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-smoke.json").ok);
+  REQUIRE(h.runner.step());  // listening
+  REQUIRE(h.runner.step());  // thinking
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());  // down
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+  CHECK(h.runner.transport().error_message() == "wifi lost");
+  REQUIRE(h.runner.step());  // recover
+  CHECK(h.runner.activity() == PassportActivity::kNone);  // NOT restored
+  CHECK(h.runner.transport().channel_open());
+  REQUIRE(h.runner.step());  // listening again
+  CHECK(h.runner.activity() == PassportActivity::kListening);
 }

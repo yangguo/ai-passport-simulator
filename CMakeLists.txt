@@ -18,7 +18,7 @@ add_library(sim_core STATIC
   src/settings_store.cc
   src/scenario_runner.cc)
 target_include_directories(sim_core PUBLIC include shared)
-target_link_libraries(sim_core PUBLIC caption nlohmann_json::nlohmann_json)
+target_link_libraries(sim_core PUBLIC caption nlohmann_json::nlohmann_json transport audio_mock)
 add_library(transport STATIC src/transport_mock.cc)
 target_include_directories(transport PUBLIC include)
 add_library(audio_mock STATIC src/audio_pipeline_mock.cc)
