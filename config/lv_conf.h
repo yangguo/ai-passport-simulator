@@ -10,4 +10,8 @@
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_FONT_MONTSERRAT_14 1
 
+/* Host tools must fail loudly: upstream halts (while(1)) on assert. */
+#define LV_ASSERT_HANDLER_INCLUDE <stdlib.h>
+#define LV_ASSERT_HANDLER abort();
+
 #endif /* LV_CONF_H */

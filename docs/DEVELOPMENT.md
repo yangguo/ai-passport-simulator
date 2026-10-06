@@ -58,6 +58,17 @@ Add `--scenario <path>`, `--screenshot <path>`, and headless screenshot mode onl
 - Fixtures use synthetic text and mock values only.
 - Unknown versions/events fail validation instead of silently changing behavior.
 
+## Golden screenshot workflow
+
+- Goldens live in `tests/golden/*.png` (240x320 viewport only, no window chrome).
+- Regenerate one golden after an intentional UI change:
+  `./build/app/passport-replay --scenario tests/scenarios/<fixture>.json [--at-ms N] [--alert TEXT] --screenshot tests/golden/<name>.png`
+- Review the git diff of the PNG plus the geometry assertions before committing;
+  a golden update without a linked behavior change is rejected in review.
+- `tools/compare-png <expected> <actual> <diff-out>` diffs with threshold:
+  max 0.1% pixels, each within RGB distance 8.
+- CI uploads `*.actual.png` / `*.diff.png` on mismatch.
+
 ## Pull request expectations
 
 - Explain user-visible behavior and what is intentionally mocked.

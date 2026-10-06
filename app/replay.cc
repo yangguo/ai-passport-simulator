@@ -16,7 +16,7 @@ namespace {
 
 void Usage() {
   std::cerr << "usage: passport-replay --scenario <path> [--log <path>] "
-               "[--screenshot <png> [--at-ms <n>]]\n";
+               "[--screenshot <png> [--at-ms <n>] [--alert <text>]]\n";
 }
 
 }  // namespace
@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
   std::string scenario;
   std::string log_path;
   std::string shot_path;
+  std::string alert_text;
   uint32_t at_ms = UINT32_MAX;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -34,6 +35,8 @@ int main(int argc, char** argv) {
       log_path = argv[++i];
     } else if (arg == "--screenshot" && i + 1 < argc) {
       shot_path = argv[++i];
+    } else if (arg == "--alert" && i + 1 < argc) {
+      alert_text = argv[++i];
     } else if (arg == "--at-ms" && i + 1 < argc) {
       at_ms = static_cast<uint32_t>(std::stoul(argv[++i]));
     } else {
@@ -73,6 +76,7 @@ int main(int argc, char** argv) {
     } else {
       shell.render(captions, runner.activity());
     }
+    if (!alert_text.empty()) shell.set_alert(alert_text.c_str());
     shell.tick(100);
     if (!passport_sim::SaveViewportPng(shot_path, shell.framebuffer(),
                                        passport_sim::LvglShell::kWidth,

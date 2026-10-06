@@ -6,6 +6,8 @@
 // licensed CJK font lands (see Task 10 docs).
 #include "passport_sim/lvgl_shell.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -18,10 +20,11 @@ namespace {
 
 bool lv_ready = false;
 
-void FlushCb(lv_display_t* disp, const lv_area_t* /*area*/, uint8_t* /*px*/) {
-  // Single full-frame buffer: LVGL renders directly into frame_.
-  lv_display_flush_ready(disp);
-}
+// Dedicated draw buffer: partial dirty areas render at its start, then
+// FlushCb blits them into frame_. Must NOT be frame_ itself (see FlushCb).
+// Aligned to LV_DRAW_BUF_ALIGN: set_buffers halts on a misaligned buffer.
+alignas(LV_DRAW_BUF_ALIGN) uint16_t
+    draw_buf_[LvglShell::kWidth * LvglShell::kHeight];
 
 const char* StatusText(PassportActivity a) {
   switch (a) {
@@ -59,6 +62,23 @@ lv_obj_t* PlainBox(lv_obj_t* parent, int32_t x, int32_t y, int32_t w,
 
 }  // namespace
 
+void LvglShell::FlushCb(lv_display_t* disp, const lv_area_t* area,
+                         uint8_t* px_map) {
+  // The draw buffer holds ONLY the dirty area, rendered at buffer start;
+  // blit it to its screen position in frame_ (both RGB565). The separate
+  // draw buffer is essential: partial areas render at offset 0 of whichever
+  // buffer backs them, so rendering them into frame_ itself would leave
+  // scribbles at the top of the screen.
+  const int32_t w = area->x2 - area->x1 + 1;
+  for (int32_t y = area->y1; y <= area->y2; ++y) {
+    const uint16_t* src =
+        reinterpret_cast<const uint16_t*>(px_map) + (y - area->y1) * w;
+    uint16_t* dst = &LvglShell::frame_[y * LvglShell::kWidth + area->x1];
+    memcpy(dst, src, static_cast<size_t>(w) * sizeof(uint16_t));
+  }
+  lv_display_flush_ready(disp);
+}
+
 // Same mask point as firmware: the rounded glass zeroes flush output outside
 // the visible span (firmware screen_rounding.c, mask on the RGB565 buffer).
 void LvglShell::MaskFrame() {
@@ -68,7 +88,7 @@ void LvglShell::MaskFrame() {
       LvglShell::kHeight, PASSPORT_SCREEN_RADIUS);
 }
 
-uint16_t LvglShell::frame_[kWidth * kHeight];
+alignas(LV_DRAW_BUF_ALIGN) uint16_t LvglShell::frame_[kWidth * kHeight];
 
 struct LvglShell::Impl {
   Layout layout;
@@ -87,6 +107,7 @@ struct LvglShell::Impl {
   uint32_t page_timer_ms = 0;
   int32_t content_h = 0;
   int32_t viewport_h = 0;
+  LayoutRects last_rects{};
 };
 
 LvglShell::LvglShell() : impl_(new Impl()) {
@@ -96,7 +117,7 @@ LvglShell::LvglShell() : impl_(new Impl()) {
   }
   Impl& m = *impl_;
   m.disp = lv_display_create(kWidth, kHeight);
-  lv_display_set_buffers(m.disp, frame_, nullptr, sizeof(frame_),
+  lv_display_set_buffers(m.disp, draw_buf_, nullptr, sizeof(draw_buf_),
                          LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(m.disp, FlushCb);
 
@@ -148,6 +169,12 @@ LvglShell::~LvglShell() {
 
 void LvglShell::set_alert(const char* text) {
   Impl& m = *impl_;
+  const passport_rect_t& line = m.last_rects.activity_line;
+  lv_obj_set_pos(m.alert_box, line.x, line.y);
+  lv_obj_set_size(m.alert_box, line.width, line.height);
+  lv_obj_clear_flag(m.alert_box, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_width(m.alert_label, line.width);
+  lv_label_set_long_mode(m.alert_label, LV_LABEL_LONG_WRAP);
   lv_label_set_text(m.alert_label, text);
   lv_obj_clear_flag(m.alert_box, LV_OBJ_FLAG_HIDDEN);
   lv_refr_now(m.disp);
@@ -173,6 +200,7 @@ void LvglShell::apply_page() {
 void LvglShell::render(const CaptionBuffers& captions, PassportActivity activity) {
   Impl& m = *impl_;
   const LayoutRects rects = m.layout.compute(activity);
+  m.last_rects = rects;
 
   passport_widget_place_t status_place{};
   passport_status_bar_place(&status_place);

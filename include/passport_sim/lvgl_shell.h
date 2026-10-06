@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "caption_buffers.h"
+#include "lvgl.h"
 #include "passport_activity.h"
 
 namespace passport_sim {
@@ -34,6 +35,8 @@ class LvglShell {
  private:
   void apply_page();
   static void MaskFrame();
+  static void FlushCb(lv_display_t* disp, const lv_area_t* area,
+                      uint8_t* px_map);
 
   struct Impl;
   Impl* impl_;
