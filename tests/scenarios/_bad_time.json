@@ -1,0 +1,9 @@
+{
+  "scenario_version": 1,
+  "name": "bad-time",
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 1200, "type": "tts_start"},
+    {"at_ms": 700, "type": "tts_stop"}
+  ]
+}
