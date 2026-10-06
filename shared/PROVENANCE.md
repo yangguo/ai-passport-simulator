@@ -1,5 +1,11 @@
 # Provenance of imported firmware files (all MIT-licensed)
 
+Pinned source revisions (2026-10-06):
+
+- `yangguo/xiaozhi-esp32`: `1636ac336a1f257bad4ba8d7e5ea04966aac836a`
+- `FoloToy/ai-passport` (upstream geometry/button reference): `33d3d1d93a1125b356b47b6d83a7a60121be801e`
+- LVGL `v9.5.0`: `85aa60d18b3d5e5588d7b247abf90198f07c8a63`
+
 ## `shared/screen_rounding.h` / `shared/screen_rounding.c`
 
 - Byte-identical copy of

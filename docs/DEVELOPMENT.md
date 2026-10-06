@@ -36,18 +36,20 @@ Adjust only after the first implementation validates dependency and build needs.
 9. If a shared firmware module changes, run host tests and the Passport firmware build/size workflow; list the two results separately.
 10. A visual change must include before/after screenshots or an updated golden image with a reviewed diff.
 
-## Planned build interface
-
-Once implemented, prefer these stable project-level commands:
+## Build interface (verified P0)
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
-./build/passport-simulator
+./build/app/passport-simulator --scenario tests/scenarios/ptt-normal.json
+./build/app/passport-replay --scenario tests/scenarios/stt-retained-through-tts.json --screenshot out/stt-retained.png
 ```
 
-Add `--scenario <path>`, `--screenshot <path>`, and headless screenshot mode only with tested argument parsing and documented exit codes. Until P0-01 passes on a clean macOS and Ubuntu checkout, mark all commands as planned.
+Binaries live under `build/app/` (`passport-simulator`, `passport-replay`) and
+`build/tools/` (`compare-png`). Argument parsing is tested (exit 0 ok, 2 bad
+usage, 3 invalid fixture). Ubuntu CI runs the same three commands; macOS steps
+above are verified on a clean checkout.
 
 ## Scenario fixture conventions
 
