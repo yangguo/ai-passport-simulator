@@ -1,0 +1,18 @@
+{
+  "scenario_version": 1,
+  "name": "transport-recovery",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 300, "type": "stt", "text": "天气怎么样"},
+    {"at_ms": 600, "type": "state", "value": "thinking"},
+    {"at_ms": 1500, "type": "transport", "action": "down", "reason": "wifi lost"},
+    {"at_ms": 4500, "type": "transport", "action": "recover"},
+    {"at_ms": 5000, "type": "state", "value": "listening"},
+    {"at_ms": 5300, "type": "stt", "text": "那明天呢"},
+    {"at_ms": 5600, "type": "state", "value": "thinking"},
+    {"at_ms": 5900, "type": "tts_start"},
+    {"at_ms": 6100, "type": "tts_sentence", "text": "明天晴。"},
+    {"at_ms": 7000, "type": "tts_stop"}
+  ]
+}
