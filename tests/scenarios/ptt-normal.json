@@ -1,0 +1,15 @@
+{
+  "scenario_version": 1,
+  "name": "ptt-normal",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 450, "type": "stt", "text": "明天下午天气怎么样？"},
+    {"at_ms": 700, "type": "state", "value": "thinking"},
+    {"at_ms": 1200, "type": "tts_start"},
+    {"at_ms": 1400, "type": "tts_sentence", "text": "明天下午可能会下雨。"},
+    {"at_ms": 2500, "type": "tts_sentence", "text": "记得带伞。"},
+    {"at_ms": 3600, "type": "tts_stop"},
+    {"at_ms": 3800, "type": "state", "value": "idle"}
+  ]
+}

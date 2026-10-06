@@ -12,6 +12,9 @@ struct CaptionLimits {
   size_t assistant_max_bytes = 2048;
 };
 
+// Returns true when s is well-formed UTF-8 (also used by fixture validation).
+bool utf8_valid(std::string_view s);
+
 class CaptionBuffers {
  public:
   explicit CaptionBuffers(CaptionLimits limits = {});

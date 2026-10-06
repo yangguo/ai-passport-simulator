@@ -1,0 +1,18 @@
+{
+  "scenario_version": 1,
+  "name": "packet-gap-reorder-queue-full",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "listening"},
+    {"at_ms": 300, "type": "stt", "text": "播放通知"},
+    {"at_ms": 600, "type": "state", "value": "thinking"},
+    {"at_ms": 900, "type": "tts_start"},
+    {"at_ms": 1100, "type": "note", "text": "udp seq gap 41->44 (SIMULATED)"},
+    {"at_ms": 1200, "type": "tts_sentence", "text": "第一条通知。"},
+    {"at_ms": 2000, "type": "note", "text": "udp out-of-order 47<46 (SIMULATED)"},
+    {"at_ms": 2100, "type": "tts_sentence", "text": "第二条通知。"},
+    {"at_ms": 2500, "type": "note", "text": "audio queue full, dropped 3 (SIMULATED)"},
+    {"at_ms": 2600, "type": "tts_sentence", "text": "第三条通知。"},
+    {"at_ms": 3400, "type": "tts_stop"}
+  ]
+}

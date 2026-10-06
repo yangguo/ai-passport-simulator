@@ -5,7 +5,9 @@ namespace {
 
 bool is_continuation(unsigned char c) { return (c & 0xC0) == 0x80; }
 
-bool is_valid_utf8(std::string_view s) {
+}  // namespace
+
+bool utf8_valid(std::string_view s) {
   size_t i = 0;
   while (i < s.size()) {
     unsigned char c = static_cast<unsigned char>(s[i]);
@@ -28,6 +30,8 @@ bool is_valid_utf8(std::string_view s) {
   return true;
 }
 
+namespace {
+
 std::string truncate_at_utf8_boundary(std::string_view s, size_t max_bytes) {
   if (s.size() <= max_bytes) return std::string(s);
   size_t n = max_bytes;
@@ -40,7 +44,7 @@ std::string truncate_at_utf8_boundary(std::string_view s, size_t max_bytes) {
 CaptionBuffers::CaptionBuffers(CaptionLimits limits) : limits_(limits) {}
 
 bool CaptionBuffers::set_user_stt(std::string_view utf8) {
-  if (utf8.empty() || !is_valid_utf8(utf8)) return false;
+  if (utf8.empty() || !utf8_valid(utf8)) return false;
   user_ = truncate_at_utf8_boundary(utf8, limits_.user_max_bytes);
   user_truncated_ = utf8.size() > limits_.user_max_bytes;
   return true;
@@ -52,7 +56,7 @@ void CaptionBuffers::begin_tts_turn() {
 }
 
 void CaptionBuffers::append_tts_sentence(std::string_view utf8) {
-  if (utf8.empty() || !is_valid_utf8(utf8)) return;
+  if (utf8.empty() || !utf8_valid(utf8)) return;
   if (!assistant_.empty()) assistant_ += " ";
   assistant_ += utf8;
   if (assistant_.size() > limits_.assistant_max_bytes) {

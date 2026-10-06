@@ -1,0 +1,15 @@
+{
+  "scenario_version": 1,
+  "name": "dim-sleep-wake",
+  "meta": {"simulated": true},
+  "events": [
+    {"at_ms": 0, "type": "state", "value": "idle"},
+    {"at_ms": 30000, "type": "note", "text": "display dim to 10% (SIMULATED)"},
+    {"at_ms": 60000, "type": "note", "text": "soft sleep (SIMULATED)"},
+    {"at_ms": 300000, "type": "note", "text": "deep sleep (SIMULATED)"},
+    {"at_ms": 360000, "type": "key", "key": "ok", "action": "press"},
+    {"at_ms": 360100, "type": "key", "key": "ok", "action": "release"},
+    {"at_ms": 360200, "type": "note", "text": "wake to idle (SIMULATED)"},
+    {"at_ms": 360300, "type": "state", "value": "idle"}
+  ]
+}

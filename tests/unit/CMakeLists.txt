@@ -1,7 +1,8 @@
 function(add_passport_test name)
   add_executable(${name} test_main.cc ${ARGN})
   target_link_libraries(${name} PRIVATE doctest::doctest)
-  add_test(NAME ${name} COMMAND ${name})
+  # Fixtures live in the source tree; run tests from the repo root.
+  add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 
 add_passport_test(test_smoke test_smoke.cc)
@@ -13,3 +14,5 @@ add_passport_test(test_caption_buffers test_caption_buffers.cc)
 target_link_libraries(test_caption_buffers PRIVATE caption)
 add_passport_test(test_layout test_layout.cc)
 target_link_libraries(test_layout PRIVATE layout)
+add_passport_test(test_scenario_runner test_scenario_runner.cc)
+target_link_libraries(test_scenario_runner PRIVATE sim_core)
