@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.28)
+project(ai_passport_simulator LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(PASSPORT_WITH_LVGL "Build real LVGL/SDL rendering (Stage 2)" OFF)
+include(cmake/FetchDeps.cmake)
+enable_testing()
+add_subdirectory(tests/unit)
