@@ -301,4 +301,9 @@ void ScenarioRunner::run() {
   }
 }
 
+uint32_t ScenarioRunner::next_at_ms() const {
+  if (cursor_ >= events_.size()) return UINT32_MAX;
+  return events_[cursor_].at_ms;
+}
+
 }  // namespace passport_sim

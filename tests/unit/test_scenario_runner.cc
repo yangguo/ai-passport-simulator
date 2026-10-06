@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <cstdint>
 #include <string>
 
 #include "caption_buffers.h"
@@ -105,6 +106,16 @@ TEST_CASE("replay is byte-for-byte deterministic") {
   REQUIRE(b.runner.step());
   b.runner.run();
   CHECK(a.runner.log() == b.runner.log());
+}
+
+TEST_CASE("runner exposes next event time for transport controls") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/ptt-normal.json").ok);
+  CHECK(h.runner.next_at_ms() == 0);
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.next_at_ms() == 450);
+  h.runner.run();
+  CHECK(h.runner.next_at_ms() == UINT32_MAX);
 }
 
 TEST_CASE("all ten starter fixtures load and replay") {

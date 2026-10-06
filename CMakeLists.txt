@@ -26,3 +26,9 @@ add_test(NAME replay_ptt_log
   COMMAND ${CMAKE_COMMAND} -DREPLAY_BIN=$<TARGET_FILE:passport-replay>
     -DBIN_DIR=${CMAKE_BINARY_DIR} -DSRC_DIR=${CMAKE_SOURCE_DIR}
     -P ${CMAKE_SOURCE_DIR}/tests/replay_check.cmake)
+add_test(NAME shell_smoke
+  COMMAND $<TARGET_FILE:passport-simulator>
+    --scenario tests/scenarios/menu-open-close.json
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(shell_smoke PROPERTIES
+  ENVIRONMENT "SDL_VIDEODRIVER=dummy")

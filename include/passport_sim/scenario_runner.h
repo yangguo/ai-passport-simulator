@@ -39,6 +39,9 @@ class ScenarioRunner {
   // Returns false when no events remain.
   bool step();
   void run();
+  // Virtual time of the next pending event, or UINT32_MAX when done.
+  // Used by interactive transports (play/pause) that advance the clock.
+  uint32_t next_at_ms() const;
   std::string log() const { return log_; }
   std::string name() const { return name_; }
   PassportActivity activity() const { return activity_; }
