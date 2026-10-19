@@ -1,4 +1,6 @@
 add_executable(passport-replay replay.cc)
 target_link_libraries(passport-replay PRIVATE sim_core lvglui)
+target_include_directories(passport-replay PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(passport-simulator main.cc)
 target_link_libraries(passport-simulator PRIVATE sim_core lvglui layout SDL2::SDL2 SDL2::SDL2main)
+target_include_directories(passport-simulator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

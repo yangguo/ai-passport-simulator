@@ -1,0 +1,30 @@
+{
+  "scenario_version": 1,
+  "name": "transport-near-clock-limit",
+  "meta": {
+    "simulated": true
+  },
+  "events": [
+    {
+      "at_ms": 4294967000,
+      "type": "state",
+      "value": "listening"
+    },
+    {
+      "at_ms": 4294967100,
+      "type": "state",
+      "value": "thinking"
+    },
+    {
+      "at_ms": 4294967200,
+      "type": "transport",
+      "action": "timeout",
+      "after_ms": 200
+    },
+    {
+      "at_ms": 4294967295,
+      "type": "note",
+      "text": "clock limit"
+    }
+  ]
+}

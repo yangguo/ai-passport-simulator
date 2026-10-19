@@ -64,6 +64,22 @@ mocks behind `include/passport_sim` only; error strings reuse P0 format
   decode are the firmware's "main queues"; total drops across all four
   queues; pure ASCII (Montserrat has no arrows/symbols for this).
 - **error while Up implies Down**: yes (spec interface comment is normative).
+- **Speaking on transport loss/error**: clear the Speaking chip along with
+  Thinking (and Listening: loss/error clears any activity chip, matching
+  firmware OnAudioChannelClosed -> SetDeviceState(Idle)). Only a later
+  `listening`, `speaking` or `tts_start` restores a chip; `thinking` does not,
+  because Thinking is entered only from Listening and the loss already left
+  activity at None. Transport updates that leave the link healthy do not run the
+  device-state transition; an actual channel loss/error ends the active
+  exchange, which may not produce another device-state event. This follows
+  the existing idle/channel-close clearing rule without letting a harmless
+  timeout arm or redundant `up` erase either activity.
+- **Timeout observation and range**: deadlines are checked at the next event
+  step before that event, with a maximum `after_ms` of 24 hours. A trailing
+  timeout has no later step to trigger it, and `--at-ms` alone does not poll
+  deadlines.
+- **Audio reorder scope**: `reorder:true` is valid only for `decode`, because
+  reordering is modeled as a decode-side phenomenon; other queues reject it.
 
 ---
 

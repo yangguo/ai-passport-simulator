@@ -9,10 +9,13 @@
 #include "passport_sim/settings_store.h"
 #include "passport_sim/virtual_clock.h"
 
+using passport_sim::AudioPipelineMock;
+using passport_sim::AudioQueue;
 using passport_sim::ButtonInput;
 using passport_sim::CaptionBuffers;
 using passport_sim::ScenarioRunner;
 using passport_sim::SettingsStore;
+using passport_sim::TransportMock;
 using passport_sim::VirtualClock;
 
 namespace {
@@ -22,7 +25,9 @@ struct Harness {
   CaptionBuffers captions;
   ButtonInput buttons{clock};
   SettingsStore settings;
-  ScenarioRunner runner{clock, captions, buttons, settings};
+  TransportMock transport;
+  AudioPipelineMock audio;
+  ScenarioRunner runner{clock, captions, buttons, settings, transport, audio};
 };
 
 }  // namespace
@@ -118,7 +123,7 @@ TEST_CASE("runner exposes next event time for transport controls") {
   CHECK(h.runner.next_at_ms() == UINT32_MAX);
 }
 
-TEST_CASE("all ten starter fixtures load and replay") {
+TEST_CASE("all twelve primary scenario fixtures load and replay") {
   const char* names[] = {"ptt-normal",
                          "stt-retained-through-tts",
                          "empty-stt-ignored",
@@ -128,7 +133,9 @@ TEST_CASE("all ten starter fixtures load and replay") {
                          "packet-gap-reorder-queue-full",
                          "missing-battery-low-alert",
                          "menu-open-close",
-                         "dim-sleep-wake"};
+                         "dim-sleep-wake",
+                         "transport-recovery",
+                         "queue-saturation"};
   for (const char* n : names) {
     Harness h;
     const std::string path =
@@ -139,4 +146,157 @@ TEST_CASE("all ten starter fixtures load and replay") {
     h.runner.run();
     CHECK_FALSE(h.runner.log().empty());
   }
+}
+
+TEST_CASE("transport rejects bad action, missing reason, bad queue") {
+  Harness h;
+  auto a = h.runner.load("tests/scenarios/_bad_transport_action.json");
+  CHECK_FALSE(a.ok);
+  CHECK(a.error.find("unknown transport action") != std::string::npos);
+  auto b = h.runner.load("tests/scenarios/_bad_transport_reason.json");
+  CHECK_FALSE(b.ok);
+  CHECK(b.error.find("missing non-empty string 'reason'") != std::string::npos);
+  auto c = h.runner.load("tests/scenarios/_bad_transport_queue.json");
+  CHECK_FALSE(c.ok);
+  CHECK(c.error.find("unknown queue") != std::string::npos);
+}
+
+TEST_CASE("transport timeout keeps thinking until expiry and logs expiry first") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/disconnect-timeout.json").ok);
+  for (int i = 0; i < 4; ++i) REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+  const std::string log = h.runner.log();
+  const size_t expiry = log.find("[4500] transport timeout expired -> activity=None link=Down");
+  const size_t same_ms_state = log.find("[4500] state idle");
+  CHECK(expiry != std::string::npos);
+  CHECK(same_ms_state != std::string::npos);
+  CHECK(expiry < same_ms_state);
+}
+
+TEST_CASE("up and recover while Up preserve thinking") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-up-noop.json").ok);
+  REQUIRE(h.runner.step());
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+}
+
+TEST_CASE("transport down clears thinking, recover does not restore it") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-smoke.json").ok);
+  REQUIRE(h.runner.step());  // listening
+  REQUIRE(h.runner.step());  // thinking
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());  // redundant up
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  REQUIRE(h.runner.step());  // down
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+  CHECK(h.runner.transport().error_message() == "wifi lost");
+  REQUIRE(h.runner.step());  // recover
+  CHECK(h.runner.activity() == PassportActivity::kNone);  // NOT restored
+  CHECK(h.runner.transport().channel_open());
+  REQUIRE(h.runner.step());  // listening again
+  CHECK(h.runner.activity() == PassportActivity::kListening);
+}
+
+TEST_CASE("transport error routes its reason and closes the channel") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-error.json").ok);
+  h.runner.run();
+  CHECK_FALSE(h.runner.transport().channel_open());
+  CHECK(h.runner.transport().error_message() == "mqtt refused");
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+  CHECK(h.runner.log().find("error \"mqtt refused\" link=Down err=\"mqtt refused\"") !=
+        std::string::npos);
+}
+
+TEST_CASE("transport timeout rejects zero and values above its documented bound") {
+  Harness h;
+  auto zero =
+      h.runner.load("tests/scenarios/_bad_transport_zero_timeout.json");
+  CHECK_FALSE(zero.ok);
+  CHECK(zero.error.find("'after_ms' must be between 1 and 86400000") !=
+        std::string::npos);
+  auto too_large =
+      h.runner.load("tests/scenarios/_bad_transport_large_timeout.json");
+  CHECK_FALSE(too_large.ok);
+  CHECK(too_large.error.find("'after_ms' must be between 1 and 86400000") !=
+        std::string::npos);
+}
+
+TEST_CASE("transport timeout deadline does not wrap near uint32 clock limit") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-near-clock-limit.json").ok);
+  h.runner.run();
+  CHECK(h.runner.activity() == PassportActivity::kThinking);
+  CHECK(h.runner.log().find("transport timeout expired") == std::string::npos);
+}
+
+TEST_CASE("transport loss clears speaking activity") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-speaking-loss.json").ok);
+  REQUIRE(h.runner.step());
+  REQUIRE(h.runner.step());
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kSpeaking);
+  REQUIRE(h.runner.step());
+  CHECK(h.runner.activity() == PassportActivity::kNone);
+}
+
+TEST_CASE("transport rejects error without reason and reorder outside decode") {
+  Harness h;
+  auto missing_error_reason =
+      h.runner.load("tests/scenarios/_bad_transport_error_reason.json");
+  CHECK_FALSE(missing_error_reason.ok);
+  CHECK(missing_error_reason.error.find("missing non-empty string 'reason'") !=
+        std::string::npos);
+  auto non_decode_reorder =
+      h.runner.load("tests/scenarios/_bad_audio_reorder.json");
+  CHECK_FALSE(non_decode_reorder.ok);
+  CHECK(non_decode_reorder.error.find(
+            "'reorder' is only supported for queue 'decode'") !=
+        std::string::npos);
+  auto non_boolean =
+      h.runner.load("tests/scenarios/_bad_audio_reorder_type.json");
+  CHECK_FALSE(non_boolean.ok);
+  CHECK(non_boolean.error.find("'reorder' must be boolean") != std::string::npos);
+}
+
+TEST_CASE("captions survive a transport outage") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/transport-recovery.json").ok);
+  h.runner.run();
+  CHECK(h.captions.user() == "那明天呢");
+  CHECK(h.captions.assistant() == "明天晴。");
+  CHECK(h.runner.log().find("link=Down") != std::string::npos);
+  CHECK(h.runner.log().find("link=Up") != std::string::npos);
+}
+
+TEST_CASE("saturated send queue drops but TTS still completes") {
+  Harness h;
+  REQUIRE(h.runner.load("tests/scenarios/queue-saturation.json").ok);
+  h.runner.run();
+  CHECK(h.audio.counters(passport_sim::AudioQueue::Send).depth == 0);
+  CHECK(h.audio.counters(passport_sim::AudioQueue::Send).dropped == 5);
+  CHECK(h.captions.assistant() == "第一条。");
+}
+
+TEST_CASE("decode burst caps depth and counts drops") {
+  Harness h;
+  REQUIRE(
+      h.runner.load("tests/scenarios/packet-gap-reorder-queue-full.json").ok);
+  h.runner.run();
+  const auto& c = h.audio.counters(passport_sim::AudioQueue::Decode);
+  CHECK(c.depth == 20);
+  CHECK(c.dropped == 8);
+  CHECK(c.gaps == 3);
+  CHECK(c.reordered == 1);
+  CHECK(h.captions.assistant().find("第三条通知") != std::string::npos);
 }

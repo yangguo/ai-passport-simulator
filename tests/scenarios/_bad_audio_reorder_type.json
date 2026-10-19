@@ -1,0 +1,1 @@
+{"scenario_version":1,"name":"bad-audio-reorder-type","events":[{"at_ms":0,"type":"audio_packet","queue":"decode","seq":1,"reorder":"yes"}]}
