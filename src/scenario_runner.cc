@@ -355,9 +355,11 @@ bool ScenarioRunner::step() {
     channel_open_ = transport_.channel_open();
     has_error_ = transport_.has_error();
     // Preserve activity through harmless transport updates. A real channel
-    // loss/error clears any chip (Listening, Thinking or Speaking): without
-    // the channel the interaction is no longer active even if no state event
-    // arrives; the next state event re-establishes activity.
+    // loss/error clears any chip (Listening, Thinking or Speaking), matching
+    // firmware OnAudioChannelClosed -> SetDeviceState(Idle). Only a later
+    // `listening`, `speaking` or `tts_start` restores a chip; `thinking` does
+    // not (Thinking is entered only from Listening, and the loss already left
+    // activity at None).
     if (PassportThinkingClears(activity_, last_device_state_, channel_open_) ||
         !channel_open_ || has_error_) {
       activity_ = PassportActivity::kNone;
@@ -429,7 +431,9 @@ bool ScenarioRunner::step() {
     // Keep activity unchanged for up/recover/timeout-arm while healthy. Loss
     // or error clears any chip (Listening, Thinking or Speaking) because the
     // active exchange has lost its transport and may not receive another
-    // device-state event.
+    // device-state event (firmware OnAudioChannelClosed -> Idle). Only a later
+    // `listening`, `speaking` or `tts_start` restores a chip; `thinking` does
+    // not, since Thinking is entered only from Listening.
     if (PassportThinkingClears(activity_, last_device_state_, channel_open_) ||
         !channel_open_ || has_error_) {
       activity_ = PassportActivity::kNone;

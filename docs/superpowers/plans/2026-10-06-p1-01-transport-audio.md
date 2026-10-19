@@ -65,8 +65,11 @@ mocks behind `include/passport_sim` only; error strings reuse P0 format
   queues; pure ASCII (Montserrat has no arrows/symbols for this).
 - **error while Up implies Down**: yes (spec interface comment is normative).
 - **Speaking on transport loss/error**: clear the Speaking chip along with
-  Thinking (and Listening: loss/error clears any activity chip until the next
-  device-state event). Transport updates that leave the link healthy do not run the
+  Thinking (and Listening: loss/error clears any activity chip, matching
+  firmware OnAudioChannelClosed -> SetDeviceState(Idle)). Only a later
+  `listening`, `speaking` or `tts_start` restores a chip; `thinking` does not,
+  because Thinking is entered only from Listening and the loss already left
+  activity at None. Transport updates that leave the link healthy do not run the
   device-state transition; an actual channel loss/error ends the active
   exchange, which may not produce another device-state event. This follows
   the existing idle/channel-close clearing rule without letting a harmless
