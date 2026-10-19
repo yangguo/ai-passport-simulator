@@ -159,6 +159,7 @@ LvglShell::LvglShell() : impl_(new Impl()) {
 
   // Audio queue waterline: same activity-line rect, preempted by alerts.
   m.waterline = lv_label_create(screen);
+  lv_label_set_text(m.waterline, "");
   lv_label_set_long_mode(m.waterline, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_color(m.waterline, lv_color_hex(0x55707A), 0);
 

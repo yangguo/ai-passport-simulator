@@ -72,6 +72,11 @@ class ScenarioRunner {
   std::vector<ScenarioEvent> events_;
   size_t cursor_ = 0;
   PassportActivity activity_ = PassportActivity::kNone;
+  // Kept separately from TransportMock by design: the device `thinking` /
+  // `listening` events can establish an open conversation channel. Thus reset
+  // starts closed while TransportMock starts Up; a state event after transport
+  // down may set this true without changing the mock until another transport
+  // event synchronizes it.
   bool channel_open_ = false;
   bool has_error_ = false;
   DeviceState last_device_state_ = kDeviceStateIdle;

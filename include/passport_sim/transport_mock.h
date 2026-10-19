@@ -16,7 +16,9 @@ class TransportMock {
   TransportMock() = default;
   void link_down(std::string_view reason);
   void link_up();
-  // Arms a deadline `after_ms` past `now_ms`; poll_deadline() fires it.
+  // Arms a deadline `after_ms` past `now_ms`; poll_deadline() fires it. The
+  // scenario format limits after_ms to 24 hours. Expiry is observed only when
+  // the runner reaches a subsequent event step.
   void timeout(uint32_t now_ms, uint32_t after_ms);
   void error(std::string_view msg);  // Down + error string
   void recover();                    // Up, clears error
@@ -34,7 +36,7 @@ class TransportMock {
   LinkState state_ = LinkState::Up;
   std::string error_;
   bool deadline_armed_ = false;
-  uint32_t deadline_at_ms_ = 0;
+  uint64_t deadline_at_ms_ = 0;
 };
 
 }  // namespace passport_sim

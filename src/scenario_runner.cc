@@ -10,6 +10,7 @@ namespace {
 
 constexpr size_t kMaxEvents = 4096;
 constexpr size_t kMaxTextBytes = 8192;
+constexpr uint32_t kMaxTransportTimeoutMs = 24 * 60 * 60 * 1000;
 
 const char* kTopKeys[] = {"scenario_version", "name", "events", "meta"};
 
@@ -252,8 +253,8 @@ LoadResult ScenarioRunner::load(const std::string& path) {
           return fail(where + ": missing positive integer 'after_ms'");
         }
         const uint64_t wide_after = e["after_ms"].get<uint64_t>();
-        if (wide_after < 1 || wide_after > 0xFFFFFFFFu) {
-          return fail(where + ": 'after_ms' must be >= 1");
+        if (wide_after < 1 || wide_after > kMaxTransportTimeoutMs) {
+          return fail(where + ": 'after_ms' must be between 1 and 86400000");
         }
         ev.after_ms = static_cast<uint32_t>(wide_after);
       }
@@ -286,6 +287,9 @@ LoadResult ScenarioRunner::load(const std::string& path) {
           return fail(where + ": 'reorder' must be boolean");
         }
         ev.reorder = e["reorder"].get<bool>();
+        if (ev.reorder && ev.audio_queue != "decode") {
+          return fail(where + ": 'reorder' is only supported for queue 'decode'");
+        }
       }
       for (const auto& [k, _] : e.items()) {
         if (k != "at_ms" && k != "type" && k != "queue" && k != "seq" &&
@@ -344,13 +348,20 @@ bool ScenarioRunner::step() {
   const ScenarioEvent ev = events_[cursor_++];
   clock_.advance_to(ev.at_ms);
   std::ostringstream line;
-  // A pending transport deadline is evaluated at every step before the event
-  // itself applies, so expiry wins ties against same-ms events.
+  // Timeouts have no background clock: they expire at the next event step
+  // (so a trailing timeout never fires and --at-ms alone cannot fire it).
+  // A pending deadline is evaluated before that event, so expiry wins ties.
   if (transport_.poll_deadline(clock_.now_ms())) {
     channel_open_ = transport_.channel_open();
     has_error_ = transport_.has_error();
-    activity_ = PassportResolveActivity(activity_, last_device_state_,
-                                        channel_open_, has_error_);
+    // Preserve activity through harmless transport updates. A real channel
+    // loss/error clears any chip (Listening, Thinking or Speaking): without
+    // the channel the interaction is no longer active even if no state event
+    // arrives; the next state event re-establishes activity.
+    if (PassportThinkingClears(activity_, last_device_state_, channel_open_) ||
+        !channel_open_ || has_error_) {
+      activity_ = PassportActivity::kNone;
+    }
     std::ostringstream expiry;
     expiry << "[" << clock_.now_ms() << "] transport timeout expired"
            << " -> activity=" << ActivityName(activity_) << " link=Down"
@@ -415,8 +426,14 @@ bool ScenarioRunner::step() {
     }
     channel_open_ = transport_.channel_open();
     has_error_ = transport_.has_error();
-    activity_ = PassportResolveActivity(activity_, last_device_state_,
-                                        channel_open_, has_error_);
+    // Keep activity unchanged for up/recover/timeout-arm while healthy. Loss
+    // or error clears any chip (Listening, Thinking or Speaking) because the
+    // active exchange has lost its transport and may not receive another
+    // device-state event.
+    if (PassportThinkingClears(activity_, last_device_state_, channel_open_) ||
+        !channel_open_ || has_error_) {
+      activity_ = PassportActivity::kNone;
+    }
     line << " " << ev.transport_action;
     if (ev.transport_action == "down" || ev.transport_action == "error") {
       line << " \"" << EscapeLog(ev.reason) << "\"";

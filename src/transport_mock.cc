@@ -16,7 +16,7 @@ void TransportMock::link_up() {
 
 void TransportMock::timeout(uint32_t now_ms, uint32_t after_ms) {
   deadline_armed_ = true;
-  deadline_at_ms_ = now_ms + after_ms;
+  deadline_at_ms_ = static_cast<uint64_t>(now_ms) + after_ms;
 }
 
 void TransportMock::error(std::string_view msg) {
@@ -37,7 +37,7 @@ std::string_view TransportMock::error_message() const { return error_; }
 LinkState TransportMock::state() const { return state_; }
 
 bool TransportMock::deadline_due(uint32_t now_ms) const {
-  return deadline_armed_ && now_ms >= deadline_at_ms_;
+  return deadline_armed_ && static_cast<uint64_t>(now_ms) >= deadline_at_ms_;
 }
 
 bool TransportMock::poll_deadline(uint32_t now_ms) {
