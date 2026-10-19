@@ -302,6 +302,11 @@
     {
       "at_ms": 2800,
       "type": "tts_stop"
+    },
+    {
+      "at_ms": 2900,
+      "type": "state",
+      "value": "idle"
     }
   ]
 }

@@ -7,6 +7,6 @@
     {"at_ms": 300, "type": "stt", "text": "现在几点了"},
     {"at_ms": 600, "type": "state", "value": "thinking"},
     {"at_ms": 1500, "type": "transport", "action": "timeout", "after_ms": 3000},
-    {"at_ms": 4600, "type": "state", "value": "idle"}
+    {"at_ms": 4500, "type": "state", "value": "idle"}
   ]
 }
