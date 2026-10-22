@@ -1,0 +1,10 @@
+[gov011]
+bin = "${FIRMWARE_DIR}/gov011/ai-passport-go-v0.1.1-release-merged.bin"
+
+[chess93dd170]
+bin = "${FIRMWARE_DIR}/chess93dd170/merged.bin"
+elf = "${FIRMWARE_DIR}/chess93dd170/ai-passport-chess.elf"
+
+[xxlcac7eb1]
+bin = "${FIRMWARE_DIR}/xxlcac7eb1/merged.bin"
+elf = "${FIRMWARE_DIR}/xxlcac7eb1/ai-passport-xiaoxiaole.elf"

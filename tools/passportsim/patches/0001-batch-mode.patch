@@ -1,0 +1,88 @@
+diff --git a/crates/pemu-cli/src/main.rs b/crates/pemu-cli/src/main.rs
+index 6264f2f..0000000 100644
+--- a/crates/pemu-cli/src/main.rs
++++ b/crates/pemu-cli/src/main.rs
+@@ -84,6 +84,9 @@
+ }
+ 
+ fn main() -> ExitCode {
++    if std::env::var_os("PASSPORTSIM_BATCH").is_some() {
++        return run_batch();
++    }
+     let outcome = run(
+         &std::env::args_os().collect::<Vec<OsString>>(),
+         &mut HostJson,
+@@ -97,6 +100,73 @@
+     }
+     ExitCode::from(outcome.code)
+ }
++
++/// Run one command per line in this process. The instance pool therefore persists, while
++/// `--ephemeral` keeps every command local and avoids starting or connecting to a daemon.
++fn run_batch() -> ExitCode {
++    let Some(batch_path) = std::env::var_os("PASSPORTSIM_BATCH") else {
++        return ExitCode::from(2);
++    };
++    let text = match std::fs::read_to_string(&batch_path) {
++        Ok(text) => text,
++        Err(error) => {
++            eprintln!("PASSPORTSIM_BATCH: cannot read {}: {error}", batch_path.to_string_lossy());
++            return ExitCode::from(2);
++        }
++    };
++    let art_root = std::env::var_os("PASSPORTSIM_BATCH_ARTIFACTS")
++        .unwrap_or_else(|| std::env::temp_dir().join("passportsim-batch-artifacts").into_os_string());
++    let dir = match pemu_host::artifacts::ArtifactDir::create(
++        std::path::Path::new(&art_root), "batch", "p1",
++    ) {
++        Ok(dir) => std::sync::Arc::new(std::sync::Mutex::new(dir)),
++        Err(error) => {
++            eprintln!("PASSPORTSIM_BATCH: cannot create artifact directory {}: {error}", art_root.to_string_lossy());
++            return ExitCode::from(2);
++        }
++    };
++    let keep_going = match std::env::var("PASSPORTSIM_BATCH_KEEP_GOING") {
++        Ok(value) if value == "1" => true,
++        Ok(value) if value == "0" || value.is_empty() => false,
++        Ok(value) => {
++            eprintln!("PASSPORTSIM_BATCH_KEEP_GOING must be 1 or 0, got {value:?}");
++            return ExitCode::from(2);
++        }
++        Err(std::env::VarError::NotPresent) => false,
++        Err(error) => {
++            eprintln!("PASSPORTSIM_BATCH_KEEP_GOING is not valid Unicode: {error}");
++            return ExitCode::from(2);
++        }
++    };
++    let mut final_code = 0u8;
++    for (line_index, line) in text.lines().enumerate() {
++        let line = line.trim();
++        if line.is_empty() || line.starts_with('#') {
++            continue;
++        }
++        let mut argv = vec![OsString::from("passportsim"), OsString::from("--ephemeral")];
++        argv.extend(line.split_whitespace().map(OsString::from));
++        println!(">>> {}: {line}", line_index + 1);
++        let outcome = pemu_host::artifacts::bind_current(Some(dir.clone()), || {
++            run(&argv, &mut HostJson, Policy::Host)
++        });
++        if !outcome.stdout.is_empty() {
++            render::write(&outcome.stdout, Stream::Stdout);
++        }
++        if !outcome.stderr.is_empty() {
++            render::write(&outcome.stderr, Stream::Stderr);
++        }
++        println!("<<< exit {}", outcome.code);
++        if outcome.code != 0 {
++            final_code = outcome.code;
++            if !keep_going {
++                break;
++            }
++        }
++    }
++    ExitCode::from(final_code)
++}
++
+ 
+ fn run(argv: &[OsString], source: &mut dyn JsonSource, policy: Policy) -> Outcome {
+     // Read before the arguments parse, so a refusal of argv itself is still a JSON envelope when

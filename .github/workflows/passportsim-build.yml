@@ -1,0 +1,27 @@
+name: passportsim build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/passportsim/**'
+      - '.github/workflows/passportsim-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            /home/runner/.cache/apsim/passportsim/src -> target
+      - name: Build pinned passportsim
+        env:
+          PASSPORTSIM_CACHE: /home/runner/.cache/apsim/passportsim
+          RUSTUP_TOOLCHAIN: 1.93.0
+        run: tools/passportsim/setup.sh
