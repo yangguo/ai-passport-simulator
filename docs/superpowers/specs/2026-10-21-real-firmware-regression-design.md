@@ -2,7 +2,7 @@
 
 - Date: 2026-10-21
 - Scope: ESP32-C3 firmware regression on Ubuntu CI, integrated with the existing host harness; game corpus first, XiaoZhi conversation coverage behind a compatibility spike
-- Status: proposed design; implementation, upstream acceptance, and new firmware evidence pending
+- Status: M1 source lock/fetch wiring is implemented; two-repeat clean-box results for all three sources are recorded in `/workspace/m1-runs/REPORT.md`. Readiness profiles, warning policy, semantic navigation checks, and ten-run acceptance remain open.
 - Approach: retain fast host tests and add a separate headless passportsim execution backend with shared scenario intent and firmware-specific oracles
 
 ## 1. Goals and non-goals
@@ -93,7 +93,15 @@ M0 must document the actual invocation and JSON command schema after it has been
 
 ## 4. Firmware corpus and artifact sourcing
 
-Each game repository's CI owns firmware compilation. For Go, chess, and xiaoxiaole, add an artifact publication step at the exact source revision selected for testing; the harness consumes that output rather than building arbitrary game repositories in every PR job. Record the actual repository URL during M0 because repository locations were not supplied with the abbreviated commits.
+Each game repository's CI owns firmware compilation. The M1 inventory is tracked in `tools/passportsim/firmware-sources.toml`; the fetcher selects these exact immutable sources and never resolves a moving branch:
+
+| Corpus | Repository and source | Published input | Current status |
+|---|---|---|---|
+| `gov011` | [yangguo/ai-passport-go](https://github.com/yangguo/ai-passport-go), tag `v0.1.1`, source `0762e467c8b1759294aa78694fa918f81683930c` | Release asset `ai-passport-go-v0.1.1-release.zip` | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism. No ELF in the release or inspected CI zips, so `ui` tree inspection remains unavailable. |
+| `chessfd8fa19` | [yangguo/ai-passport-chess](https://github.com/yangguo/ai-passport-chess), run `38233745799`, source `fd8fa19718acb60971bcb33ef9738c1d959d4914` | Artifact `firmware-09ab758e7edb5fb57b230a26b98d7f1f9aab3a12` (PR artifact name uses the merge commit SHA; `fd8fa19` is the PR head source) | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism. Artifact contains `.elf`; `ui` inspection is unsupported for its LVGL 9.6 layout. It currently expires 2027-01-10. |
+| `xxlaba64c1` | [yangguo/ai-passport-xiaoxiaole](https://github.com/yangguo/ai-passport-xiaoxiaole), run `38265044174`, source `aba64c1a41613e8cbc60289dd9c57d1f431bed5a` | Artifact `firmware-aba64c1a41613e8cbc60289dd9c57d1f431bed5a` | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism; `ui` tree inspection passes. The known tofu/digit issue remains. Artifact currently expires 2027-01-10; this run is from `feat/level-variety`, because its firmware workflow is not yet on `main`. |
+
+The Go release asset has no scheduled CI-artifact expiry, but it remains dependent on the release being retained. Chess and xiaoxiaole are ordinary workflow artifacts and expire on the dates above unless promoted. Fetch failures on expired/missing artifacts direct maintainers to pin and review a replacement source. The local fetch cache is private (`0700`) and defaults to `$PASSPORTSIM_FIRMWARE_STORE` or `~/.cache/apsim/firmware`; firmware bytes must never enter this repository, consistent with Decision 2 below. The lock records SHA-256 for each consumed bin/ELF, and the run manifest records repository, run/tag, source commit, and actual hashes.
 
 Every artifact bundle contains:
 
@@ -235,7 +243,7 @@ For xiaoxiaole, correct LVGL tree text with tofu digits is supplied evidence of 
 | Milestone | Deliverables | Exit criteria |
 |---|---|---|
 | M0 — source and experiment recovery | Resolve full emulator/game commits and game repository URLs; obtain or rebuild all three bundles; tracked batch path, driver, corpus, documented schema | Clean Ubuntu checkout loads each game and performs DOWN/UP/OK in one process without desktop/daemon; hashes and raw evidence recorded; no local prototype dependency remains |
-| M1 — reliable execution | Readiness profiles, isolated state, input timing, warning parser/allowlists, deterministic scheduling and artifact collection | Each game reaches its expected menu and visibly responds to all three keys; ten fresh repetitions pass; historical tofu is explicitly diagnosed; false timeout reproduced and avoided by readiness markers; new warning/crash/stall each fails usefully |
+| M1 — reliable execution | Source lock/fetcher and offline fake-`gh` test implemented. Two-repeat clean-box results are recorded in `/workspace/m1-runs/REPORT.md`; all three games pass boot, framebuffer-change navigation, and determinism. Readiness profiles, semantic input evidence, warning parser/allowlists, and ten-run acceptance remain in progress. | Each game reaches its expected menu and semantically responds to all three keys; ten fresh repetitions pass; historical tofu is explicitly diagnosed; false timeout reproduced and avoided by readiness markers; new warning/crash/stall each fails usefully |
 | M2 — harness CI gate | Scenario adapter and capability matrix; separate firmware goldens, masks, comparator; pinned Ubuntu smoke job | Three-game smoke runs on PRs within measured budgets, twice from fresh state; exact repeated captures/logs; deliberate navigation/pixel regression fails; actual/expected/diff/UART/results uploaded; host CTest remains green |
 | M3 — inspection and readable text | DWARF descriptors for LVGL 9.5/9.6; host CJK subset; xiaoxiaole upstream font fix/artifact or explicit unresolved text gate | Same known label/visibility cases inspect correctly on both LVGL versions; stripped/mismatched ELF fails or declares allowed fallback; reviewed host mixed-text goldens; xiaoxiaole digit gate passes only after genuine font correction |
 | M4 — XiaoZhi spike | Three-day compatibility/network experiment and source-built bundle (§9.2) | Written route decision with pass/fail evidence; supported protocols and all bypasses explicit; no production-6.1 claim from a compatibility build or shim |

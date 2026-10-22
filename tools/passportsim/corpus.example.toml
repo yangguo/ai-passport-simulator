@@ -1,3 +1,4 @@
+# Historical M0 local-file layout; current CI-sourced IDs are in firmware-sources.toml.
 [gov011]
 bin = "${FIRMWARE_DIR}/gov011/ai-passport-go-v0.1.1-release-merged.bin"
 

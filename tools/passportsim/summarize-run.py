@@ -25,6 +25,7 @@ args = parser.parse_args()
 log = (args.run_dir / "session.log").read_text(encoding="utf-8", errors="replace")
 manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
 elf_sha = manifest["corpus"][args.corpus_id].get("elf", {}).get("sha256")
+firmware_source = manifest.get("sources", {}).get(args.corpus_id)
 screenshots = [
     {"path": str(path.relative_to(args.run_dir)), "sha256": sha256(path), "file": path}
     for path in sorted((args.run_dir / "artifacts").rglob("*.png"))
@@ -90,7 +91,7 @@ for field, previous_name, current_name in [
 navigation_pass = all(navigation.values())
 text_quality = (
     "failing (known font/tofu issue, separately tracked)"
-    if args.corpus_id == "xxlcac7eb1" else None
+    if args.corpus_id == "xxlaba64c1" else None
 )
 command_failures = [item for item in commands if not item["accepted"]]
 summary = {
@@ -111,5 +112,6 @@ summary = {
     "vt_us": int(vt_values[-1]) if vt_values else None,
     "idf_ver": idf_matches[-1] if idf_matches else None,
     "elf_sha256": elf_sha,
+    "firmware_source": firmware_source,
 }
 (args.run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

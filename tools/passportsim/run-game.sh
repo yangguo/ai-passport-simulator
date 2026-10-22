@@ -2,15 +2,20 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: run-game.sh [--repeat] <corpus-id> <outdir>" >&2
-  echo "corpus ids: gov011 chess93dd170 xxlcac7eb1" >&2
+  echo "usage: run-game.sh [--repeat] [--no-fetch] <corpus-id> <outdir>" >&2
+  echo "corpus ids: gov011 chessfd8fa19 xxlaba64c1" >&2
 }
 
 repeat=0
-if [[ "${1:-}" == "--repeat" ]]; then
-  repeat=1
+no_fetch=0
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --repeat) repeat=1 ;;
+    --no-fetch) no_fetch=1 ;;
+    *) usage; exit 2 ;;
+  esac
   shift
-fi
+done
 if [[ $# -ne 2 ]]; then
   usage
   exit 2
@@ -18,7 +23,7 @@ fi
 corpus_id="$1"
 outdir="$(mkdir -p -- "$2" && cd -- "$2" && pwd -P)"
 case "$corpus_id" in
-  gov011|chess93dd170|xxlcac7eb1) ;;
+  gov011|chessfd8fa19|xxlaba64c1) ;;
   *) usage; exit 2 ;;
 esac
 
@@ -37,7 +42,22 @@ run_once() {
   local manifest="$state_dir/firmware-manifest.json"
   local batch="$run_dir/commands.txt"
   mkdir -p -- "$run_dir/artifacts"
-  PASSPORTSIM_HOME="$state_dir" python3 "$script_dir/configure-corpus.py" "$state_dir" > "$run_dir/configure.log"
+  local configured=1
+  case "$corpus_id" in
+    gov011) [[ -n "${PASSPORTSIM_GOV011_BIN:-}" ]] && configured=0 ;;
+    chessfd8fa19) [[ -n "${PASSPORTSIM_CHESSFD8FA19_BIN:-}" && -n "${PASSPORTSIM_CHESSFD8FA19_ELF:-}" ]] && configured=0 ;;
+    xxlaba64c1) [[ -n "${PASSPORTSIM_XXLABA64C1_BIN:-}" && -n "${PASSPORTSIM_XXLABA64C1_ELF:-}" ]] && configured=0 ;;
+  esac
+  [[ -n "${FIRMWARE_DIR:-}" ]] && configured=0
+  if (( configured )) && (( ! no_fetch )); then
+    python3 "$script_dir/fetch-firmware.py" "$corpus_id" --home "$state_dir" > "$run_dir/configure.log"
+  else
+    if (( configured )) && (( no_fetch )); then
+      echo "run-game: firmware is not configured and --no-fetch was supplied" >&2
+      return 2
+    fi
+    PASSPORTSIM_HOME="$state_dir" python3 "$script_dir/configure-corpus.py" "$state_dir" --corpus-id "$corpus_id" > "$run_dir/configure.log"
+  fi
   cat > "$batch" <<COMMANDS
 start $corpus_id --boot until_ui_settled --boot-timeout 20s --artifacts $run_dir/artifacts
 screenshot --save-as 01-boot --artifacts $run_dir/artifacts
