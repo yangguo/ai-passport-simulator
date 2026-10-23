@@ -260,11 +260,13 @@ This document specifies future work; no implementation or new firmware execution
 | Artifact licenses restrict redistribution | Inventory source/assets/fonts and choose private durable storage where needed before promotion |
 | CI capacity or diagnostic growth exceeds estimates | Measured smoke budget, two-process cap, bounded traces/storage, nightly extended matrix; timeout/OOM cannot pass |
 
-## 13. Open decisions for the user
+## 13. Decisions (approved 2026-10-22)
 
-- Who owns the temporary passportsim fork and upstream PRs? Recommended: one named maintainer, with upstream-first changes and a pinned fork for delivery.
-- Which exact repositories/workflow artifacts supply the three game revisions, and may their firmware/fonts be retained or redistributed publicly? Recommended: pin producer CI bundles and keep restricted assets in an approved private store.
-- After the three-day spike, is a 5.5.3 compatibility build useful as an interim XiaoZhi gate, or is production IDF 6.1 coverage required before calling conversation regression supported? Recommended: accept explicitly labeled interim application/protocol evidence while keeping production coverage open.
-- Are both WebSocket and MQTT+UDP required for the first conversation gate, or can WebSocket land first? Recommended: WebSocket first, with MQTT+UDP unsupported until its own acceptance checks pass.
-- Should the initial required game gate cover navigation while the xiaoxiaole font defect is open? Recommended: yes, with a separately visible failing text-quality criterion and an owner; no tofu golden approval as readable output.
-- Are the proposed PR time/storage budgets and 14-day diagnostic retention acceptable? Recommended: adopt provisionally, then adjust from M2 measurements without weakening regression or determinism checks.
+The user accepted every recommendation in the previous open-decision list:
+
+1. One named maintainer owns the passportsim fork and upstream PRs. Changes are upstream-first, with a pinned fork used for delivery. Until a fork repository exists, delivery is pinned to the upstream commit plus a tracked patch in this repository.
+2. Firmware comes from pinned game-repository CI artifacts. Restricted firmware and fonts stay in an approved private store and are never committed here.
+3. The XiaoZhi ESP-IDF 5.5.3 compatibility build is accepted as explicitly labeled interim evidence. Production ESP-IDF 6.1 coverage remains open.
+4. WebSocket is first. MQTT+UDP remains unsupported until its own acceptance checks pass.
+5. xiaoxiaole navigation checks are required. Text quality is a separately visible failing check with an owner; tofu is never approved as a golden.
+6. PR budgets and 14-day diagnostic retention are adopted provisionally.
