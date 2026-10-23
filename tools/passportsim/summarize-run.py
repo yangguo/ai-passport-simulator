@@ -34,9 +34,12 @@ vt_values = re.findall(r'"vt_us"\s*:\s*(\d+)', log)
 idf_matches = re.findall(r'(?:IDF_VERSION|ESP-IDF(?: version)?)\s*[:= ]\s*(v?\d+\.\d+\.\d+)', log, re.I)
 command_pattern = re.compile(r"^>>> (\d+): (.*?)\n(.*?)^<<< exit (\d+)$", re.M | re.S)
 commands = []
+uart_output = []
 for line, command, output, code_text in command_pattern.findall(log):
     code = int(code_text)
     kind = command.split(maxsplit=1)[0]
+    if kind == "serial" and command.startswith("serial read"):
+        uart_output.append(output.rstrip())
     known_ui_reason = None
     if kind == "ui" and code != 0:
         if "no symbol the app ELF of this firmware" in output:
@@ -115,3 +118,4 @@ summary = {
     "firmware_source": firmware_source,
 }
 (args.run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+(args.run_dir / "uart.log").write_text("\n".join(uart_output).rstrip() + "\n", encoding="utf-8")

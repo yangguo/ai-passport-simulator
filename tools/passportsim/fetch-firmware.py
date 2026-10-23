@@ -120,6 +120,40 @@ def main() -> int:
     with LOCK.open("rb") as stream:
         lock = tomllib.load(stream)["corpora"]
     entry = lock[args.corpus_id]
+    override_id = os.environ.get("PASSPORTSIM_OVERRIDE_CORPUS_ID")
+    override_envs = (
+        "PASSPORTSIM_OVERRIDE_REPO", "PASSPORTSIM_OVERRIDE_RUN_ID", "PASSPORTSIM_OVERRIDE_ARTIFACT",
+        "PASSPORTSIM_OVERRIDE_BIN_SHA256", "PASSPORTSIM_OVERRIDE_ELF_SHA256",
+    )
+    if any(os.environ.get(env) for env in override_envs) and not override_id:
+        raise RuntimeError("source override fields were supplied without PASSPORTSIM_OVERRIDE_CORPUS_ID")
+    if override_id == args.corpus_id:
+        override_names = {
+            "repo": "PASSPORTSIM_OVERRIDE_REPO", "run_id": "PASSPORTSIM_OVERRIDE_RUN_ID",
+            "artifact": "PASSPORTSIM_OVERRIDE_ARTIFACT",
+        }
+        missing_override = [env for env in override_names.values() if not os.environ.get(env)]
+        if missing_override:
+            raise RuntimeError("incomplete source override; missing " + ", ".join(missing_override))
+        entry = dict(entry)
+        for key, env in override_names.items():
+            entry[key] = os.environ[env]
+        entry["kind"] = "run"
+        entry.pop("tag", None)
+        entry.pop("asset", None)
+        run_info = json.loads(run_gh(["api", f"repos/{entry['repo']}/actions/runs/{entry['run_id']}"]))
+        if not run_info.get("head_sha"):
+            raise RuntimeError("source override run metadata did not include head_sha")
+        entry["source_commit"] = run_info["head_sha"]
+        bin_override = os.environ.get("PASSPORTSIM_OVERRIDE_BIN_SHA256")
+        elf_override = os.environ.get("PASSPORTSIM_OVERRIDE_ELF_SHA256")
+        if not bin_override or not re.fullmatch(r"[0-9a-f]{64}", bin_override):
+            raise RuntimeError("source override requires PASSPORTSIM_OVERRIDE_BIN_SHA256 as 64 lowercase hex characters")
+        entry["bin_sha256"] = bin_override
+        if entry.get("elf_member"):
+            if not elf_override or not re.fullmatch(r"[0-9a-f]{64}", elf_override):
+                raise RuntimeError("this corpus requires PASSPORTSIM_OVERRIDE_ELF_SHA256 as 64 lowercase hex characters")
+            entry["elf_sha256"] = elf_override
     store = (args.store or Path(os.environ.get("PASSPORTSIM_FIRMWARE_STORE", "~/.cache/apsim/firmware"))).expanduser().resolve()
     store.mkdir(parents=True, exist_ok=True, mode=0o700)
     store.chmod(0o700)

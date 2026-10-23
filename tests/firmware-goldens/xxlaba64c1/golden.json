@@ -1,0 +1,30 @@
+{
+  "corpus_id": "xxlaba64c1",
+  "firmware_sha256": "67c68824cd8524e483b4eeb5677c44601bf0da22e14123f8fc215269ee6cb890",
+  "checkpoints": {
+    "01-boot": {
+      "sha256": "b3432da2629cae02bc15f3107ebb3b990d51c714d53aef18d642d8007ed2466b",
+      "width": 240,
+      "height": 320,
+      "text_quality": "failing-known-tofu"
+    },
+    "02-after-down": {
+      "sha256": "293761063c0429d0279b6cd642ac5bcd7f4de620f7fbc66a896f2015c1ac712c",
+      "width": 240,
+      "height": 320,
+      "text_quality": "failing-known-tofu"
+    },
+    "03-after-up": {
+      "sha256": "b3432da2629cae02bc15f3107ebb3b990d51c714d53aef18d642d8007ed2466b",
+      "width": 240,
+      "height": 320,
+      "text_quality": "failing-known-tofu"
+    },
+    "04-after-ok": {
+      "sha256": "7e9a90213949acde3c4fcf700cb36bc11d99bc19594c1d4ea0c6c107657c4137",
+      "width": 240,
+      "height": 320,
+      "text_quality": "failing-known-tofu"
+    }
+  }
+}

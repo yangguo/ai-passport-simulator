@@ -7,8 +7,12 @@ The first version is a **desktop simulation and test harness**, not a hardware e
 ## Status
 
 P0 simulator implemented and green on macOS (clean-checkout configure, build,
-and all 15 tests pass) with Ubuntu CI configured. See the
-[device checklist](docs/DEVICE_CHECKLIST.md) for what simulation cannot verify.
+and all 15 tests pass) with Ubuntu CI configured. The M2 real-firmware gate is
+implemented for three pinned game images and passes its local smoke run; the
+first GitHub workflow run is pending. xiaoxiaole navigation passes while its
+known tofu text-quality check remains visibly failing and non-blocking. See
+[firmware regression details](tools/passportsim/README.md) and the [device
+checklist](docs/DEVICE_CHECKLIST.md) for what simulation cannot verify.
 
 ## Build, test, and run (verified on macOS)
 

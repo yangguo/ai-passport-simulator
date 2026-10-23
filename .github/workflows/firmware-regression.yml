@@ -1,0 +1,131 @@
+name: firmware regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      corpus_ids:
+        description: Comma-separated corpus IDs, or all three
+        required: false
+        default: gov011,chessfd8fa19,xxlaba64c1
+        type: string
+  workflow_call:
+    inputs:
+      corpus_ids:
+        description: Comma-separated corpus IDs, or all three
+        required: false
+        default: gov011,chessfd8fa19,xxlaba64c1
+        type: string
+      override_corpus_id:
+        description: Single corpus whose firmware source is overridden
+        required: false
+        type: string
+      source_repo:
+        description: Source repository for the caller's firmware artifact
+        required: false
+        type: string
+      source_run_id:
+        description: Successful workflow run ID containing the artifact
+        required: false
+        type: string
+      source_artifact:
+        description: Artifact name in that run
+        required: false
+        type: string
+      expected_bin_sha256:
+        description: Expected merged binary SHA-256
+        required: false
+        type: string
+      expected_elf_sha256:
+        description: Expected ELF SHA-256 when that corpus supplies an ELF
+        required: false
+        type: string
+    secrets:
+      FIRMWARE_READ_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fork-notice:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Explain skipped private firmware access
+        run: echo 'Firmware regression skipped: pull requests from forks do not receive FIRMWARE_READ_TOKEN. Run the reusable workflow from a trusted branch after review.'
+
+  firmware-smoke:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PASSPORTSIM_CACHE: /home/runner/.cache/apsim/passportsim
+      PASSPORTSIM_FIRMWARE_STORE: /home/runner/.cache/apsim/firmware
+      M2_RUNS_ROOT: ${{ runner.temp }}/m2-runs
+      RUSTUP_TOOLCHAIN: 1.93.0
+    steps:
+      - name: Checkout harness revision
+        uses: actions/checkout@v4
+        with:
+          repository: yangguo/ai-passport-simulator
+          ref: ${{ github.workflow_sha }}
+      - name: Install minimal Rust 1.93.0
+        uses: dtolnay/rust-toolchain@1.93.0
+      - name: Restore pinned passportsim build cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/apsim/passportsim/src/target
+          key: passportsim-c94b793413336554283eeb9ca3888dc2a8d38c77-${{ hashFiles('tools/passportsim/patches/0001-batch-mode.patch') }}-rust-1.93.0-ubuntu-24.04
+      - name: Build or verify pinned passportsim
+        run: CARGO_BUILD_JOBS=2 tools/passportsim/setup.sh
+      - name: Restore verified firmware store
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/apsim/firmware
+          key: firmware-store-${{ hashFiles('tools/passportsim/firmware-sources.toml') }}
+      - name: Install image comparison dependency
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Run sequential firmware regression gate
+        env:
+          GH_TOKEN: ${{ secrets.FIRMWARE_READ_TOKEN }}
+          CORPUS_IDS: ${{ inputs.corpus_ids || github.event.inputs.corpus_ids || 'gov011,chessfd8fa19,xxlaba64c1' }}
+          PASSPORTSIM_OVERRIDE_CORPUS_ID: ${{ inputs.override_corpus_id }}
+          PASSPORTSIM_OVERRIDE_REPO: ${{ inputs.source_repo }}
+          PASSPORTSIM_OVERRIDE_RUN_ID: ${{ inputs.source_run_id }}
+          PASSPORTSIM_OVERRIDE_ARTIFACT: ${{ inputs.source_artifact }}
+          PASSPORTSIM_OVERRIDE_BIN_SHA256: ${{ inputs.expected_bin_sha256 }}
+          PASSPORTSIM_OVERRIDE_ELF_SHA256: ${{ inputs.expected_elf_sha256 }}
+        run: tools/passportsim/ci-gate.sh --corpora "$CORPUS_IDS" --runs-root "$M2_RUNS_ROOT"
+      - name: Report known xiaoxiaole text-quality failure
+        if: always() && contains(inputs.corpus_ids || github.event.inputs.corpus_ids || 'gov011,chessfd8fa19,xxlaba64c1', 'xxlaba64c1')
+        continue-on-error: true
+        run: |
+          python3 - "$M2_RUNS_ROOT/xxlaba64c1" <<'PY'
+          import json, sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          result = json.loads((root / "golden-results.json").read_text())
+          if not result.get("text_quality_pass"):
+              print("::error::xxlaba64c1 text quality FAIL: known tofu; navigation pixel gate is independent")
+              raise SystemExit(1)
+          PY
+      - name: Upload firmware regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-regression-results
+          path: |
+            ${{ runner.temp }}/m2-runs/**/run*/artifacts/*.png
+            ${{ runner.temp }}/m2-runs/**/comparison/*.png
+            ${{ runner.temp }}/m2-runs/**/session.log
+            ${{ runner.temp }}/m2-runs/**/uart.log
+            ${{ runner.temp }}/m2-runs/**/configure.log
+            ${{ runner.temp }}/m2-runs/**/home/**/logs/**
+            ${{ runner.temp }}/m2-runs/**/*.json
+            ${{ runner.temp }}/m2-runs/**/*.txt
+          if-no-files-found: warn
+          retention-days: 14

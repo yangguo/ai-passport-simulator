@@ -51,8 +51,10 @@ with open(os.environ["FAKE_GH_CALLS"], "a") as stream:
 if args[:2] == ["release", "download"]:
     dest = Path(args[args.index("-D") + 1]); dest.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(os.environ["FAKE_RELEASE_ZIP"], dest / args[args.index("-p") + 1])
+elif args[0] == "api" and len(args) > 1 and args[1].startswith("repos/") and "/actions/runs/" in args[1] and not args[1].endswith("/artifacts"):
+    print(json.dumps({{"head_sha": "override-source-commit"}}))
 elif args[0] == "api":
-    print(json.dumps({{"artifacts": [{{"name": "fixture-artifact", "expired": False}}]}}))
+    print(json.dumps({{"artifacts": [{{"name": "fixture-artifact", "expired": False}}, {{"name": "fixture-artifact-override", "expired": False}}]}}))
 elif args[:2] == ["run", "download"]:
     dest = Path(args[args.index("-D") + 1]); dest.mkdir(parents=True, exist_ok=True)
     for item in Path(os.environ["FAKE_ARTIFACT_DIR"]).iterdir():
@@ -103,6 +105,27 @@ elf_sha256 = "{digest(run_elf)}"
         fetch.sys.argv = [str(SCRIPT), "gov011", "--home", str(root / "home-repeat"), "--store", str(store)]
         assert fetch.main() == 0
         assert calls.read_text().splitlines() == before, "verified files should avoid another gh call"
+        os.environ.update({
+            "PASSPORTSIM_OVERRIDE_CORPUS_ID": "chessfd8fa19",
+            "PASSPORTSIM_OVERRIDE_REPO": "fixture/chess-override",
+            "PASSPORTSIM_OVERRIDE_RUN_ID": "456",
+            "PASSPORTSIM_OVERRIDE_ARTIFACT": "fixture-artifact-override",
+            "PASSPORTSIM_OVERRIDE_BIN_SHA256": digest(run_bin),
+            "PASSPORTSIM_OVERRIDE_ELF_SHA256": digest(run_elf),
+        })
+        unrelated_home = root / "home-unrelated-while-overridden"
+        fetch.sys.argv = [str(SCRIPT), "gov011", "--home", str(unrelated_home), "--store", str(store)]
+        assert fetch.main() == 0
+        unrelated_source = json.loads((unrelated_home / "firmware-manifest.json").read_text())["sources"]["gov011"]
+        assert unrelated_source["repo"] == "fixture/go", "single-game override must not affect other corpus entries"
+        override_home = root / "home-override"
+        fetch.sys.argv = [str(SCRIPT), "chessfd8fa19", "--home", str(override_home), "--store", str(store)]
+        assert fetch.main() == 0
+        override_source = json.loads((override_home / "firmware-manifest.json").read_text())["sources"]["chessfd8fa19"]
+        assert override_source["repo"] == "fixture/chess-override"
+        assert override_source["run_id"] == "456"
+        assert override_source["artifact"] == "fixture-artifact-override"
+        assert override_source["source_commit"] == "override-source-commit"
         assert stat.S_IMODE(store.stat().st_mode) == 0o700
         print("test_fetch: release, run artifact, manifest, private permissions, and cache reuse passed")
 
