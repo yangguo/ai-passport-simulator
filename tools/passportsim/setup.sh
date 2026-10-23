@@ -24,6 +24,15 @@ if ! command -v sha256sum >/dev/null 2>&1; then
 fi
 
 mkdir -p "$cache_root"
+# A CI cache restore may create only "$checkout/target"; keep it and clone around it.
+restored_target=""
+if [[ -d "$checkout" && ! -f "$origin_marker" && ! -e "$checkout/.git" \
+      && "$(ls -A "$checkout")" == "target" ]]; then
+  restored_target="$cache_root/.restored-target"
+  rm -rf -- "$restored_target"
+  mv -- "$checkout/target" "$restored_target"
+  rmdir -- "$checkout"
+fi
 if [[ -e "$checkout" && ! -f "$origin_marker" ]]; then
   echo "setup: refusing to replace unmarked cache path: $checkout" >&2
   exit 1
@@ -32,6 +41,9 @@ if [[ ! -d "$checkout/.git" ]]; then
   rm -rf -- "$checkout"
   git clone --no-checkout "$upstream" "$checkout"
   printf '%s\n' "$upstream" > "$origin_marker"
+fi
+if [[ -n "$restored_target" && ! -e "$checkout/target" ]]; then
+  mv -- "$restored_target" "$checkout/target"
 fi
 if [[ "$(cat "$origin_marker")" != "$upstream" ]]; then
   echo "setup: cache origin marker does not match $upstream" >&2
