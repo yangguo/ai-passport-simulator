@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Explain skipped private firmware access
-        run: echo 'Firmware regression skipped: pull requests from forks do not receive FIRMWARE_READ_TOKEN. Run the reusable workflow from a trusted branch after review.'
+        run: echo 'Firmware regression skipped - pull requests from forks do not receive FIRMWARE_READ_TOKEN. Run the reusable workflow from a trusted branch after review.'
 
   firmware-smoke:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -65,7 +65,7 @@ jobs:
     env:
       PASSPORTSIM_CACHE: /home/runner/.cache/apsim/passportsim
       PASSPORTSIM_FIRMWARE_STORE: /home/runner/.cache/apsim/firmware
-      M2_RUNS_ROOT: ${{ runner.temp }}/m2-runs
+      M2_RUNS_ROOT: /tmp/m2-runs
       RUSTUP_TOOLCHAIN: 1.93.0
     steps:
       - name: Checkout harness revision
