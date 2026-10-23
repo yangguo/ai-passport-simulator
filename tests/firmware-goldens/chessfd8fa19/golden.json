@@ -1,0 +1,26 @@
+{
+  "corpus_id": "chessfd8fa19",
+  "firmware_sha256": "d0da2c635685c35e559919da46fea89d97cc03687441d7c806117f356f10ed1d",
+  "checkpoints": {
+    "01-boot": {
+      "sha256": "a3b91d21d05a15f83ba35f21fe03ce2ea4e56edbf2a68e36a1c2501b162ddbe6",
+      "width": 240,
+      "height": 320
+    },
+    "02-after-down": {
+      "sha256": "8c89d99d0c9e557da57032be725598073f5724cc070607f0678a5f27ebfc8534",
+      "width": 240,
+      "height": 320
+    },
+    "03-after-up": {
+      "sha256": "a3b91d21d05a15f83ba35f21fe03ce2ea4e56edbf2a68e36a1c2501b162ddbe6",
+      "width": 240,
+      "height": 320
+    },
+    "04-after-ok": {
+      "sha256": "a7d14ea185580a3ac6f29269920b43baf9fe00c3e15f9935d494cf930cf0c0c8",
+      "width": 240,
+      "height": 320
+    }
+  }
+}

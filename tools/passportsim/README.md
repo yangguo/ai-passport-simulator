@@ -1,9 +1,29 @@
-# Real firmware runs with passportsim (M1 source flow)
+# Real firmware runs with passportsim (M1 source flow and M2 CI gate)
 
 This directory pins and builds BlackHole1/passportsim for local headless firmware checks. The
 runner fetches firmware from exact game-repository release/run identities in
 `firmware-sources.toml`, verifies every consumed file against its pinned SHA-256, and writes source
 provenance into each run manifest. Firmware bytes stay outside git.
+
+## M2 CI gate
+
+`.github/workflows/firmware-regression.yml` runs sequential two-repeat smoke
+checks on Ubuntu 24.04 for `gov011`, `chessfd8fa19`, and `xxlaba64c1`. The same
+gate is available locally through `tools/passportsim/ci-gate.sh`; it compares
+four checkpoint hashes against firmware-bound JSON goldens and rejects warning
+signatures outside `warning-allowlist/`. Chess PNGs are public and checked in.
+The Go and xiaoxiaole repositories are private, so their expected PNGs remain
+restricted; their JSON hashes still gate navigation. Each run uploads actual
+screenshots, available expected/diff screenshots, session and UART logs, and
+JSON results for 14 days. Reusable workflow callers can supply one artifact
+source override with exact repository, workflow run, artifact, and expected
+SHA-256 values. Pull requests from forks receive a skip notice because they do
+not receive the private firmware read token.
+
+The current xiaoxiaole checkpoints are labeled `failing-known-tofu`. Their
+pixel baselines test navigation only. A separate non-blocking workflow step
+reports the text-quality failure; it does not turn the known tofu into a text
+pass.
 
 ## Pins
 

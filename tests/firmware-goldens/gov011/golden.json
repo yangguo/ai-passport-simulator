@@ -1,0 +1,26 @@
+{
+  "corpus_id": "gov011",
+  "firmware_sha256": "4e92776a59147ca7cb2679a899ba5e656db72faf2d4da701d1f872ee101ffbfe",
+  "checkpoints": {
+    "01-boot": {
+      "sha256": "ddcfee8cb4d617493ca7b8e4a9681207abc07afa5f474e8a63d9b8c347060672",
+      "width": 240,
+      "height": 320
+    },
+    "02-after-down": {
+      "sha256": "3ef2ea26f258cd1778dc8d7857ec8191ad9214b84a78046b59d8680bc7351765",
+      "width": 240,
+      "height": 320
+    },
+    "03-after-up": {
+      "sha256": "ddcfee8cb4d617493ca7b8e4a9681207abc07afa5f474e8a63d9b8c347060672",
+      "width": 240,
+      "height": 320
+    },
+    "04-after-ok": {
+      "sha256": "e101d011f93fd94275cd1f67750355b961ac59fccd32f38dce7c9a594634abad",
+      "width": 240,
+      "height": 320
+    }
+  }
+}
