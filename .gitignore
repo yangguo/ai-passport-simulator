@@ -1,2 +1,3 @@
 build/
 .firecrawl/
+tools/passportsim/__pycache__/
