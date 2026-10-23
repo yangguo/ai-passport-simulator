@@ -1,9 +1,5 @@
 // LVGL 9.5 presentation: widgets follow shared Layout rects; captions come
 // from CaptionBuffers. No text is ever drawn outside the glass safe area.
-//
-// Fonts (P0): built-in Montserrat 14 only. CJK codepoints have no glyphs yet
-// and are skipped by LVGL; mixed-text goldens pin that behavior until a
-// licensed CJK font lands (see Task 10 docs).
 #include "passport_sim/lvgl_shell.h"
 
 #include <cstdio>
@@ -14,6 +10,10 @@
 #include "layout.h"
 #include "lvgl.h"
 #include "screen_rounding.h"
+
+extern "C" {
+extern const lv_font_t host_font_zh_14;
+}
 
 namespace passport_sim {
 namespace {
@@ -123,6 +123,9 @@ LvglShell::LvglShell() : impl_(new Impl()) {
   lv_display_set_flush_cb(m.disp, FlushCb);
 
   lv_obj_t* screen = lv_screen_active();
+  // The fixture subset covers ASCII and all non-emoji scenario text. ⏳ and 🍵 are intentionally
+  // unsupported and use LVGL's missing-glyph placeholder; emoji quality is not asserted.
+  lv_obj_set_style_text_font(screen, &host_font_zh_14, LV_PART_MAIN);
   lv_obj_set_style_bg_color(screen, lv_color_hex(0x17202A), 0);
   lv_obj_set_style_text_color(screen, lv_color_white(), 0);
 

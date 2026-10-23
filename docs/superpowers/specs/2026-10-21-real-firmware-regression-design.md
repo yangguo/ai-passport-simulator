@@ -2,7 +2,7 @@
 
 - Date: 2026-10-21
 - Scope: ESP32-C3 firmware regression on Ubuntu CI, integrated with the existing host harness; game corpus first, XiaoZhi conversation coverage behind a compatibility spike
-- Status: M1 source lock/fetch wiring is implemented; M2 harness CI gate, firmware-bound screenshot goldens, warning allowlists, and fail-red offline checks are implemented. The three-game two-repeat local gate passed on 2026-10-23; evidence is in `/workspace/m2-runs/REPORT.md`. The first GitHub workflow run remains pending. xiaoxiaole text quality still fails on known tofu and is reported separately from navigation.
+- Status: M0–M2 are on `main`. M3 branch implementation adds LVGL 9.6 DWARF flag reconstruction, required chess/xxl UI-tree gating, host Noto Sans SC subset with regenerated host goldens, and an upstream-only xiaoxiaole digit-font handoff. Layout::compute no longer nests geometry calls inside `assert()` so Release/`NDEBUG` builds still populate subtitle viewports. Go missing-ELF stays a known `ui` skip; xxl `text_quality` stays separately failing until the upstream firmware artifact is fixed.
 - Approach: retain fast host tests and add a separate headless passportsim execution backend with shared scenario intent and firmware-specific oracles
 
 ## 1. Goals and non-goals
@@ -98,7 +98,7 @@ Each game repository's CI owns firmware compilation. The M1 inventory is tracked
 | Corpus | Repository and source | Published input | Current status |
 |---|---|---|---|
 | `gov011` | [yangguo/ai-passport-go](https://github.com/yangguo/ai-passport-go), tag `v0.1.1`, source `0762e467c8b1759294aa78694fa918f81683930c` | Release asset `ai-passport-go-v0.1.1-release.zip` | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism. No ELF in the release or inspected CI zips, so `ui` tree inspection remains unavailable. |
-| `chessfd8fa19` | [yangguo/ai-passport-chess](https://github.com/yangguo/ai-passport-chess), run `38233745799`, source `fd8fa19718acb60971bcb33ef9738c1d959d4914` | Artifact `firmware-09ab758e7edb5fb57b230a26b98d7f1f9aab3a12` (PR artifact name uses the merge commit SHA; `fd8fa19` is the PR head source) | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism. Artifact contains `.elf`; `ui` inspection is unsupported for its LVGL 9.6 layout. It currently expires 2027-01-10. |
+| `chessfd8fa19` | [yangguo/ai-passport-chess](https://github.com/yangguo/ai-passport-chess), run `38233745799`, source `fd8fa19718acb60971bcb33ef9738c1d959d4914` | Artifact `firmware-09ab758e7edb5fb57b230a26b98d7f1f9aab3a12` (PR artifact name uses the merge commit SHA; `fd8fa19` is the PR head source) | Two fresh M3 runs passed boot, framebuffer navigation, screenshot determinism, and required UI-tree inspection with the LVGL 9.6 flag reconstruction patch. It currently expires 2027-01-10. |
 | `xxlaba64c1` | [yangguo/ai-passport-xiaoxiaole](https://github.com/yangguo/ai-passport-xiaoxiaole), run `38265044174`, source `aba64c1a41613e8cbc60289dd9c57d1f431bed5a` | Artifact `firmware-aba64c1a41613e8cbc60289dd9c57d1f431bed5a` | Two fresh runs passed boot, framebuffer navigation, and screenshot determinism; `ui` tree inspection passes. The known tofu/digit issue remains. Artifact currently expires 2027-01-10; this run is from `feat/level-variety`, because its firmware workflow is not yet on `main`. |
 
 The Go release asset has no scheduled CI-artifact expiry, but it remains dependent on the release being retained. Chess and xiaoxiaole are ordinary workflow artifacts and expire on the dates above unless promoted. Fetch failures on expired/missing artifacts direct maintainers to pin and review a replacement source. The local fetch cache is private (`0700`) and defaults to `$PASSPORTSIM_FIRMWARE_STORE` or `~/.cache/apsim/firmware`; firmware bytes must never enter this repository, consistent with Decision 2 below. The lock records SHA-256 for each consumed bin/ELF, and the run manifest records repository, run/tag, source commit, and actual hashes.
@@ -112,7 +112,7 @@ Every artifact bundle contains:
 
 Downloads use exact workflow run/artifact IDs or immutable release assets with expected hashes. Never select the most recent successful run by branch name. Preserve promoted bundles in an approved durable store because CI artifacts expire; license review covers firmware, fonts, artwork, and emulator assets independently of passportsim's MIT license. Caches are keyed by verified content hashes, not game names.
 
-If the historical CI run lacks ELF/DWARF, rebuild that exact source using recorded dependencies and publish a new bundle with its own identity. Do not describe the rebuilt binary as the lost experimental binary or reuse its missing hash. A missing required image, ELF, or manifest is a failed corpus-resolution gate; optional entries report unsupported with a reason, never a green execution result.
+If the historical CI run lacks ELF/DWARF, rebuild that exact source using recorded dependencies and publish a new bundle with its own identity. Do not describe the rebuilt binary as the lost experimental binary or reuse its missing hash. A missing required image or manifest is a failed corpus-resolution gate. Missing ELF is a known skip only for Go (`gov011`) under the M3 policy; chess and xiaoxiaole require their ELF for UI-tree inspection.
 
 New firmware promotion is a reviewed corpus change. Keep the prior baseline available for comparisons. Candidate artifacts can be tested against the current golden set before deciding whether a behavior change is intentional. XiaoZhi needs its own source build and manifest before any conversation result can count.
 
@@ -245,7 +245,7 @@ For xiaoxiaole, correct LVGL tree text with tofu digits is supplied evidence of 
 | M0 — source and experiment recovery | Resolve full emulator/game commits and game repository URLs; obtain or rebuild all three bundles; tracked batch path, driver, corpus, documented schema | Clean Ubuntu checkout loads each game and performs DOWN/UP/OK in one process without desktop/daemon; hashes and raw evidence recorded; no local prototype dependency remains |
 | M1 — reliable execution | Source lock/fetcher and offline fake-`gh` test implemented. Two-repeat clean-box results are recorded in `/workspace/m1-runs/REPORT.md`; all three games pass boot, framebuffer-change navigation, and determinism. Readiness profiles, semantic input evidence, warning parser/allowlists, and ten-run acceptance remain in progress. | Each game reaches its expected menu and semantically responds to all three keys; ten fresh repetitions pass; historical tofu is explicitly diagnosed; false timeout reproduced and avoided by readiness markers; new warning/crash/stall each fails usefully |
 | M2 — harness CI gate | Scenario adapter and capability matrix; separate firmware goldens, masks, comparator; pinned Ubuntu smoke job | Implemented: sequential two-repeat smoke runs for all three games passed locally on 2026-10-23; exact repeat hashes and warning allowlists passed; deliberate screenshot and warning regressions fail offline tests. Ubuntu 24.04 workflow has PR, main push, manual, and reusable-call triggers, a 10-minute timeout, and 14-day diagnostics. First hosted run and host CTest verification remain pending. xiaoxiaole navigation passes while its tofu text-quality check remains a visible non-blocking failure. |
-| M3 — inspection and readable text | DWARF descriptors for LVGL 9.5/9.6; host CJK subset; xiaoxiaole upstream font fix/artifact or explicit unresolved text gate | Same known label/visibility cases inspect correctly on both LVGL versions; stripped/mismatched ELF fails or declares allowed fallback; reviewed host mixed-text goldens; xiaoxiaole digit gate passes only after genuine font correction |
+| M3 — inspection and readable text | LVGL 9.5/9.6 flag handling, required chess/xxl UI-tree gates, host CJK subset/preflight/goldens, Release-safe layout compute, and xiaoxiaole handoff are implemented. Simulator build, DWARF unit tests, two-run chess/xxl smoke checks, and host CTest goldens pass; upstream xiaoxiaole firmware fix/artifact remains open. | Same known label/visibility cases inspect correctly on both LVGL versions; stripped/mismatched ELF fails or declares allowed fallback; reviewed host mixed-text goldens; xiaoxiaole digit gate passes only after genuine font correction |
 | M4 — XiaoZhi spike | Three-day compatibility/network experiment and source-built bundle (§9.2) | Written route decision with pass/fail evidence; supported protocols and all bypasses explicit; no production-6.1 claim from a compatibility build or shim |
 | M5 — conversation regression gate | Supported peer transports, shared fixture bindings, lifecycle/failure goldens and traces | PTT, retained/empty STT, mixed text, interruption, timeout/disconnect/recovery pass on the declared firmware variant; each claimed protocol has its own evidence; ten-run determinism and one deliberate protocol regression fail-red check |
 
@@ -278,3 +278,26 @@ The user accepted every recommendation in the previous open-decision list:
 4. WebSocket is first. MQTT+UDP remains unsupported until its own acceptance checks pass.
 5. xiaoxiaole navigation checks are required. Text quality is a separately visible failing check with an owner; tofu is never approved as a golden.
 6. PR budgets and 14-day diagnostic retention are adopted provisionally.
+
+## 14. M3 implementation notes (2026-10-24)
+
+### 14.1 LVGL 9.5 vs 9.6 object flags (DWARF)
+
+Chess (`chessfd8fa19`, LVGL 9.6) `_lv_obj_t` size is 56. The packed `flags: lv_obj_flag_t` member present in xiaoxiaole (`xxlaba64c1`, LVGL 9.5, size 48) is replaced by individual 1-bit fields at byte offset 44 (`hidden`, `clickable`, `click_focusable`, …, `floating`, …). Bit numbering matches the former `LV_OBJ_FLAG_*` shifts. Passportsim already resolves member offsets and DWARF 4/5 bitfield placements from the guest ELF; M3 only needs to stop requiring a member literally named `flags` and to rebuild the `u32` flag word from the resolved bitfields when that member is absent. Missing both representations remains `tree_unavailable` / `MissingMember`, not an empty successful tree. Do not hardcode 9.5 offsets for 9.6 ELFs.
+
+Host shell note: `Layout::compute` must invoke `passport_glass_safe_rect` / `passport_subtitle_viewport` / `passport_activity_line` outside `assert(...)`. With `NDEBUG` (Release), assertions are compiled out including their operands, which previously left subtitle viewports empty and dropped all caption pixels.
+
+### 14.2 UI-tree CI policy
+
+- `chessfd8fa19` and `xxlaba64c1`: `ui` commands must succeed; `ui_tree_ok` is required for the corpus gate (alongside navigation/determinism).
+- `gov011` (Go): no ELF → keep the existing known-limitation skip (`ui_tree_ok: false` with reason). Do not hard-fail the gate on missing-ELF alone.
+- Navigation checks remain required for all three corpora.
+- `xxlaba64c1` `text_quality` remains a separately visible failing check until an upstream font/artifact identity fixes digits; it must not block navigation or UI-tree gates.
+
+### 14.3 Host CJK subset
+
+Add a redistributable Noto Sans SC (SIL OFL 1.1) LVGL subset covering the actual host fixture inventory (CJK + punctuation + Latin/digits/degree). Emoji in fixtures (`⏳`, `🍵`) stay on an explicit fallback/placeholder path, not blessed as correct glyphs. Pin source URL/hash, converter (`lv_font_conv`), symbol inventory, and generated artifact hash. Update host goldens that change through normal review. Keep host font work distinct from firmware goldens.
+
+### 14.4 Xiaoxiaole digit tofu (handoff only)
+
+Do **not** push to `yangguo/ai-passport-xiaoxiaole` from this repository. Record the minimal upstream change for that game's bot: ensure every user-visible digit path uses `xxl_font_zh_16` (or set it as `LV_FONT_DEFAULT` / theme default), audit remaining `lv_font_montserrat_*` call sites, and republish a new firmware artifact/source identity. Until that lands, keep `text_quality: failing-known-tofu` here.

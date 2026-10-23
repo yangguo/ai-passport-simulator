@@ -1,0 +1,154 @@
+diff --git a/crates/pemu-introspect/src/layout.rs b/crates/pemu-introspect/src/layout.rs
+index 9b93284..062791e 100644
+--- a/crates/pemu-introspect/src/layout.rs
++++ b/crates/pemu-introspect/src/layout.rs
+@@ -184,6 +184,10 @@ pub const LAYOUT_REQUESTS: &[(&str, &[&str])] = &[
+             "user_data",
+             "coords",
+             "flags",
++            "hidden",
++            "clickable",
++            "scrollable",
++            "floating",
+             "state",
+             "layout_inv",
+             "scr_layout_inv",
+diff --git a/crates/pemu-introspect/src/lvgl.rs b/crates/pemu-introspect/src/lvgl.rs
+index 2706f87..d8c6a91 100644
+--- a/crates/pemu-introspect/src/lvgl.rs
++++ b/crates/pemu-introspect/src/lvgl.rs
+@@ -467,7 +467,7 @@ fn read_node(
+         y: y1,
+         w: x2.saturating_sub(x1).saturating_add(1),
+         h: y2.saturating_sub(y1).saturating_add(1),
+-        flags: o.u32(mem, obj, "flags")?,
++        flags: read_object_flags(o, mem, obj)?,
+         state: o.u16(mem, obj, "state")?,
+         layout_inv: o.flag(mem, obj, "layout_inv")?,
+         ..UiNode::default()
+@@ -500,6 +500,40 @@ fn read_node(
+     Ok(node)
+ }
+ 
++/// LVGL 9.5 stores the object flags as a packed word. LVGL 9.6 exposes the same bits as
++/// individual DWARF bitfields. Prefer the packed representation when available, and require the
++/// two bits needed for visibility and semantic pruning before accepting the bitfield layout.
++fn read_object_flags(
++    object: &crate::layout::StructLayout,
++    mem: &dyn GuestMemory,
++    obj: u32,
++) -> Result<u32, IntrospectError> {
++    if object.member("flags").is_some() {
++        return object.u32(mem, obj, "flags");
++    }
++    let hidden = object.flag(mem, obj, "hidden")?;
++    let clickable = object.flag(mem, obj, "clickable")?;
++    let mut flags = 0;
++    for (member, mask, required_value) in [
++        ("hidden", FLAG_HIDDEN, hidden),
++        ("clickable", FLAG_CLICKABLE, clickable),
++        ("scrollable", FLAG_SCROLLABLE, false),
++        ("floating", FLAG_FLOATING, false),
++    ] {
++        let value = if member == "hidden" || member == "clickable" {
++            required_value
++        } else if object.member(member).is_some() {
++            object.flag(mem, obj, member)?
++        } else {
++            false
++        };
++        if value {
++            flags |= mask;
++        }
++    }
++    Ok(flags)
++}
++
+ /// Follows `class_p` and its `base_class` chain, innermost first. A name that is not a
+ /// printable C string beginning `lv_` means the offsets are wrong.
+ fn read_class_chain(
+@@ -657,6 +691,7 @@ pub(crate) mod synthetic {
+     pub const LABEL_FLAGS: u32 = 0xbb74;
+     pub const OBJ_CLASS: u32 = 0x3c13_d9a0;
+     const LABEL_CLASS: u32 = 0x3c14_6fd4;
++    const BUTTON_CLASS: u32 = 0x3c14_7200;
+ 
+     fn member(path: &str, offset: u32) -> MemberLayout {
+         MemberLayout {
+@@ -776,6 +811,44 @@ pub(crate) mod synthetic {
+         l
+     }
+ 
++    /// LVGL 9.6 keeps the common object layout but exposes flag bits as bitfields at byte 44.
++    pub fn layouts_v96() -> Layouts {
++        let original = layouts();
++        let mut result = Layouts::new();
++        for layout in original.iter().filter(|layout| layout.name != "_lv_obj_t") {
++            result.insert(layout.clone());
++        }
++        let old = original.get("_lv_obj_t").expect("synthetic object layout");
++        let mut members: Vec<_> = old
++            .members()
++            .iter()
++            .filter(|member| member.path != "flags")
++            .cloned()
++            .collect();
++        members.extend([
++            bitfield("hidden", 44, 0, 1),
++            bitfield("clickable", 44, 1, 1),
++            bitfield("scrollable", 44, 4, 1),
++            bitfield("floating", 44, 18, 1),
++        ]);
++        result.insert(StructLayout::new("_lv_obj_t", 56, members));
++        result
++    }
++
++    pub fn image_v96() -> MemoryImage {
++        let mut mem = image();
++        mem.map_zeroed(BUTTON_CLASS, 36);
++        mem.map(0x3c13_2000, b"lv_button\0".to_vec());
++        mem.put_u32(BUTTON_CLASS, OBJ_CLASS);
++        mem.put_u32(BUTTON_CLASS + 20, 0x3c13_2000);
++        mem.put_u32(CARD1, BUTTON_CLASS);
++        for obj in [SCREEN, HEADER, CARD1, CARD2, DECO, HIDDEN, 0x3fca_4c2c, 0x3fca_4efc, 0x3fca_51d0] {
++            let flags = mem.u32(obj + 36).expect("legacy synthetic flags");
++            mem.put_u32(obj + 44, flags);
++        }
++        mem
++    }
++
+     fn object(name: &str, addr: u32, size: u32) -> Symbol {
+         Symbol {
+             name: name.to_string(),
+@@ -980,6 +1053,7 @@ pub(crate) mod synthetic {
+ 
+ #[cfg(test)]
+ mod tests {
++    use crate::layout::StructLayout;
+     use super::synthetic::*;
+     use super::*;
+ 
+@@ -1009,6 +1083,23 @@ mod tests {
+         assert!(full.contains("- obj [189,15 43x10] e8"));
+     }
+ 
++    #[test]
++    fn lvgl_96_bitfields_reconstruct_flags_for_hidden_and_clickable_pruning() {
++        let tree = walk_ui(&layouts_v96(), &symbols(), &image_v96(), 7).expect("the walk succeeds");
++        assert!(tree.node("e9").expect("hidden label").is_hidden());
++        assert!(tree.node("e4").expect("card").is_interactive());
++        let rendered = tree.render(Prune::Semantic, false);
++        assert!(!rendered.contains("secret"));
++        assert!(rendered.contains("Display"));
++    }
++
++    #[test]
++    fn missing_packed_flags_and_required_bitfields_is_a_layout_error() {
++        let layout = StructLayout::new("_lv_obj_t", 56, vec![]);
++        let error = read_object_flags(&layout, &image(), SCREEN).expect_err("flags are required");
++        assert!(matches!(error, IntrospectError::MissingMember { member: "hidden", .. }));
++    }
++
+     /// The official screen reads 0x03c3_0027 in the `child_cnt` word; reading the whole word would
+     /// refuse the real menu as past the object budget.
+     #[test]
