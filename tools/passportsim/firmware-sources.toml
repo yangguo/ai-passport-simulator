@@ -1,0 +1,35 @@
+# Immutable firmware inputs. Hashes cover the exact member files consumed by passportsim.
+
+[corpora.gov011]
+repo = "yangguo/ai-passport-go"
+kind = "release"
+tag = "v0.1.1"
+asset = "ai-passport-go-v0.1.1-release.zip"
+source_commit = "0762e467c8b1759294aa78694fa918f81683930c"
+bin_member = "ai-passport-go-v0.1.1-release-merged.bin"
+bin_sha256 = "4e92776a59147ca7cb2679a899ba5e656db72faf2d4da701d1f872ee101ffbfe"
+elf_member = ""
+elf_sha256 = ""
+elf_unavailable_reason = "The v0.1.1 release asset and CI zips do not contain an ELF; Go ui-tree inspection is unavailable until its workflow uploads one."
+
+[corpora.chessfd8fa19]
+repo = "yangguo/ai-passport-chess"
+kind = "run"
+run_id = 38233745799
+artifact = "firmware-09ab758e7edb5fb57b230a26b98d7f1f9aab3a12"
+source_commit = "fd8fa19718acb60971bcb33ef9738c1d959d4914"
+bin_member = "merged.bin"
+bin_sha256 = "d0da2c635685c35e559919da46fea89d97cc03687441d7c806117f356f10ed1d"
+elf_member = "ai-passport-chess.elf"
+elf_sha256 = "52538a8479d252a6acede546fb2de096d8ddedc9c2f8e8dafa0f9e78cc57c238"
+
+[corpora.xxlaba64c1]
+repo = "yangguo/ai-passport-xiaoxiaole"
+kind = "run"
+run_id = 38265044174
+artifact = "firmware-aba64c1a41613e8cbc60289dd9c57d1f431bed5a"
+source_commit = "aba64c1a41613e8cbc60289dd9c57d1f431bed5a"
+bin_member = "merged.bin"
+bin_sha256 = "67c68824cd8524e483b4eeb5677c44601bf0da22e14123f8fc215269ee6cb890"
+elf_member = "ai-passport-xiaoxiaole.elf"
+elf_sha256 = "54c9e5dc08b5c6d3b9cc03c14300bb62b59801c0410214307116f33e39601cac"

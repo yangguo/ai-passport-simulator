@@ -1,9 +1,9 @@
-# Real firmware runs with passportsim (M0)
+# Real firmware runs with passportsim (M1 source flow)
 
-This directory pins and builds BlackHole1/passportsim for local headless firmware checks. M0
-supports the three game images below through a single-process command batch. Firmware and ELF files
-remain external inputs; this repository stores only their resolved SHA-256 values in each run's
-manifest.
+This directory pins and builds BlackHole1/passportsim for local headless firmware checks. The
+runner fetches firmware from exact game-repository release/run identities in
+`firmware-sources.toml`, verifies every consumed file against its pinned SHA-256, and writes source
+provenance into each run manifest. Firmware bytes stay outside git.
 
 ## Pins
 
@@ -22,25 +22,31 @@ Install `rustup`, then build the pinned CLI:
 PASSPORTSIM_CACHE=/workspace/m0-cache tools/passportsim/setup.sh
 ```
 
-`setup.sh` prints the release binary path and its SHA-256. To resolve local firmware, set
-`FIRMWARE_DIR` to a directory with `gov011/`, `chess93dd170/`, and `xxlcac7eb1/` subdirectories,
-or set all five explicit `PASSPORTSIM_*_BIN` / `PASSPORTSIM_*_ELF` variables. The explicit names
-are shown in `configure-corpus.py`. For the locally supplied artifacts used by the M0 walkthrough:
+`setup.sh` prints the release binary path and its SHA-256. By default, `run-game.sh` uses `gh`
+authentication to fetch only the requested corpus into `$PASSPORTSIM_FIRMWARE_STORE` or
+`~/.cache/apsim/firmware` (created with mode `0700`). It skips downloads when cached files pass
+their locked hashes. `--no-fetch` disables this behavior. Existing `FIRMWARE_DIR` and
+`PASSPORTSIM_*_BIN` / `PASSPORTSIM_*_ELF` overrides remain available:
 
 ```sh
-export FIRMWARE_DIR=/workspace
-export PASSPORTSIM_GOV011_BIN=/workspace/pub-go/fw/ai-passport-go-v0.1.1-release-merged.bin
-export PASSPORTSIM_CHESS93DD170_BIN=/workspace/pub/fw/firmware-93dd17078ac5647260ccd3d0cd3191bd0a4e52dc/merged.bin
-export PASSPORTSIM_CHESS93DD170_ELF=/workspace/pub/fw/firmware-93dd17078ac5647260ccd3d0cd3191bd0a4e52dc/ai-passport-chess.elf
-export PASSPORTSIM_XXLCAC7EB1_BIN=/workspace/xxl-fw/firmware-cac7eb164905d34a55318308fc574167e26920a5/merged.bin
-export PASSPORTSIM_XXLCAC7EB1_ELF=/workspace/xxl-fw/firmware-cac7eb164905d34a55318308fc574167e26920a5/ai-passport-xiaoxiaole.elf
-tools/passportsim/run-game.sh --repeat gov011 /workspace/m0-runs/gov011
-tools/passportsim/run-game.sh --repeat chess93dd170 /workspace/m0-runs/chess93dd170
-tools/passportsim/run-game.sh --repeat xxlcac7eb1 /workspace/m0-runs/xxlcac7eb1
+tools/passportsim/run-game.sh --repeat gov011 /workspace/m1-runs/gov011
+tools/passportsim/run-game.sh --repeat chessfd8fa19 /workspace/m1-runs/chessfd8fa19
+tools/passportsim/run-game.sh --repeat xxlaba64c1 /workspace/m1-runs/xxlaba64c1
 ```
 
+The source inventory points to [Go](https://github.com/yangguo/ai-passport-go) release `v0.1.1`
+(source `0762e467c8b1759294aa78694fa918f81683930c`), [chess](https://github.com/yangguo/ai-passport-chess)
+run `38233745799` (source `fd8fa19718acb60971bcb33ef9738c1d959d4914`; the PR artifact name uses merge commit `09ab758…`, not this head commit), and
+[xiaoxiaole](https://github.com/yangguo/ai-passport-xiaoxiaole) run `38265044174` (source
+`aba64c1a41613e8cbc60289dd9c57d1f431bed5a`). Chess and xiaoxiaole artifacts currently expire
+2027-01-10; xiaoxiaole's selected run is from `feat/level-variety`, because its firmware workflow
+is not yet on `main`. Go's release and inspected CI zip contain no ELF, so Go `ui` tree inspection
+is unavailable until its workflow publishes one. Expired or missing artifacts fail with an
+instruction to pin a reviewed replacement; the fetcher never falls back to a moving branch.
+
 Each run creates a fresh `PASSPORTSIM_HOME`, resolves `config/corpus.toml`, hashes all available
-firmware and ELF payloads into `firmware-manifest.json`, and runs one simulator process. `--repeat`
+firmware and ELF payloads into `firmware-manifest.json`, records source repo/run-or-tag/commit, and
+runs one simulator process. `--repeat`
 creates two fresh states and compares the ordered screenshot SHA-256 lists in `summary.json`.
 Artifacts, command files, logs, config, and manifests stay under the requested output directory.
 
@@ -62,8 +68,18 @@ The Go missing-ELF `ui` error and chess LVGL 9.6 `ui` error are recorded as know
 screenshot is nonblank and that each navigation screenshot differs from the preceding screen.
 With `--repeat`, `summary.json` also compares all four screenshot hashes across the two runs and
 sets the final exit code to zero exactly when boot, navigation, and determinism pass. For
-`xxlcac7eb1`, `text_quality` records `failing (known font/tofu issue, separately tracked)`; that
+`xxlaba64c1`, `text_quality` records `failing (known font/tofu issue, separately tracked)`; that
 known text-quality issue is separate from the navigation and determinism gates.
+
+## M1 execution evidence
+
+The 2026-10-22 clean-box runs for all three locked sources are recorded in
+`/workspace/m1-runs/REPORT.md`. Two fresh runs per game passed boot, screenshot-based navigation,
+and screenshot determinism. Go `ui` inspection remains unavailable without an ELF; chess `ui`
+inspection remains unsupported for its LVGL 9.6 layout; xiaoxiaole `ui` inspection passes but its
+known tofu/digit text issue remains. Navigation verifies that the framebuffer changes after each
+key; it does not yet prove semantic control activation. The ten-run acceptance and warning-policy
+work remain open, and this local evidence does not create a firmware CI gate.
 
 The M0 game sequence is:
 
@@ -92,8 +108,11 @@ CLI's command docs are in its checkout under `docs/commands/`.
 
 ## Limitations
 
-- This is local M0 evidence, not yet a firmware CI gate. CI only builds passportsim; it does not
+- These are local M1 results, not a firmware CI gate. CI only builds passportsim; it does not
   receive private firmware artifacts.
+- The firmware cache is private and outside the repository (Decision 2 in the design document).
+  Do not copy its firmware bytes into git. `--update-lock` is an explicit reviewed operation for
+  updating expected hashes after inspecting a newly selected artifact.
 - `ui` tree inspection is unavailable for Go without an ELF and unsupported for chess on LVGL
   9.6. These outcomes stay visible as known limitations in the summary.
 - xiaoxiaole currently has a font/tofu rendering issue. Navigation can be checked, but tofu is not

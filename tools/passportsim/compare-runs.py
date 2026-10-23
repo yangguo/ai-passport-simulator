@@ -23,7 +23,7 @@ result = {
     "runs": summaries,
     "determinism": {"screenshot_hashes_match": same, "checked_screenshots": min(map(len, hashes))},
 }
-if summaries[0]["corpus_id"] == "xxlcac7eb1":
+if summaries[0]["corpus_id"] == "xxlaba64c1":
     result["text_quality"] = "failing (known font/tofu issue, separately tracked)"
 (root / "summary.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 raise SystemExit(exit_code)
