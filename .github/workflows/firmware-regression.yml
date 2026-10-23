@@ -119,13 +119,13 @@ jobs:
         with:
           name: firmware-regression-results
           path: |
-            ${{ runner.temp }}/m2-runs/**/run*/artifacts/*.png
-            ${{ runner.temp }}/m2-runs/**/comparison/*.png
-            ${{ runner.temp }}/m2-runs/**/session.log
-            ${{ runner.temp }}/m2-runs/**/uart.log
-            ${{ runner.temp }}/m2-runs/**/configure.log
-            ${{ runner.temp }}/m2-runs/**/home/**/logs/**
-            ${{ runner.temp }}/m2-runs/**/*.json
-            ${{ runner.temp }}/m2-runs/**/*.txt
+            /tmp/m2-runs/**/run*/artifacts/**/*.png
+            /tmp/m2-runs/**/comparison/*.png
+            /tmp/m2-runs/**/session.log
+            /tmp/m2-runs/**/uart.log
+            /tmp/m2-runs/**/configure.log
+            /tmp/m2-runs/**/home/**/logs/**
+            /tmp/m2-runs/**/*.json
+            /tmp/m2-runs/**/*.txt
           if-no-files-found: warn
           retention-days: 14
