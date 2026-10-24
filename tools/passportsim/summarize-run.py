@@ -42,10 +42,8 @@ for line, command, output, code_text in command_pattern.findall(log):
         uart_output.append(output.rstrip())
     known_ui_reason = None
     if kind == "ui" and code != 0:
-        if "no symbol the app ELF of this firmware" in output:
+        if args.corpus_id == "gov011" and "no symbol the app ELF of this firmware" in output:
             known_ui_reason = "Go firmware has no ELF supplied; ui reports E_STATE (no symbol)."
-        elif "struct _lv_obj_t has no member flags" in output:
-            known_ui_reason = "Chess uses LVGL 9.6; passportsim ui tree inspection is unsupported."
     tolerated = (kind == "run" and "--for" in command and code == 10) or (
         kind == "ui" and known_ui_reason is not None
     )

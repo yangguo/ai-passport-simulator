@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 project(ai_passport_simulator LANGUAGES C CXX)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(cmake/FetchDeps.cmake)
@@ -23,7 +24,7 @@ add_library(transport STATIC src/transport_mock.cc)
 target_include_directories(transport PUBLIC include)
 add_library(audio_mock STATIC src/audio_pipeline_mock.cc)
 target_include_directories(audio_mock PUBLIC include)
-add_library(lvglui STATIC src/lvgl_shell.cc src/screenshot_png.cc)
+add_library(lvglui STATIC src/lvgl_shell.cc src/screenshot_png.cc assets/fonts/host_zh_14.c)
 target_include_directories(lvglui PUBLIC include)
 target_link_libraries(lvglui PUBLIC layout caption lvgl stb)
 add_subdirectory(app)
@@ -40,6 +41,8 @@ add_test(NAME shell_smoke
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 set_tests_properties(shell_smoke PROPERTIES
   ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+add_test(NAME host_font_glyph_coverage
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/check_host_font.py)
 
 # Golden screenshot regression: replay a fixture, render the checkpoint, diff.
 function(add_golden_test name fixture golden at_ms alert)

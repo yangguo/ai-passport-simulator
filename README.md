@@ -10,7 +10,9 @@ P0 simulator implemented and green on macOS (clean-checkout configure, build,
 and all 15 tests pass) with Ubuntu CI configured. The M2 real-firmware gate is
 implemented for three pinned game images and passes its local smoke run; the
 first GitHub workflow run is pending. xiaoxiaole navigation passes while its
-known tofu text-quality check remains visibly failing and non-blocking. See
+known tofu text-quality check remains visibly failing and non-blocking. M3 adds
+required LVGL UI-tree checks for chess and xiaoxiaole, a host Noto Sans SC subset,
+and a documented upstream font handoff. See
 [firmware regression details](tools/passportsim/README.md) and the [device
 checklist](docs/DEVICE_CHECKLIST.md) for what simulation cannot verify.
 
@@ -58,8 +60,9 @@ The simulator must label mocked signals as simulated and must never report simul
 - LVGL v9.5.0 (`85aa60d`), SDL release-2.32.10, doctest v2.5.3,
   nlohmann/json v3.12.0, stb image I/O (`2c980bb`) — all fetched automatically
 - CTest host tests + `compare-png` golden regression; GitHub Actions on Ubuntu
-- Fonts (P0): built-in Montserrat 14 only — CJK renders as placeholder boxes
-  until a licensed CJK font lands; see the device checklist
+- Fonts: host LVGL shell uses a pinned Noto Sans SC 14 px subset for ASCII and
+  fixture CJK. The `⏳` and `🍵` emoji intentionally use the missing-glyph
+  placeholder. See [font sources](assets/fonts/SOURCES.md).
 
 This repository does not yet select a software license; make that decision before accepting code contributions or redistributing firmware-derived assets.
 

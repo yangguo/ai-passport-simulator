@@ -79,7 +79,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /home/runner/.cache/apsim/passportsim/src/target
-          key: passportsim-c94b793413336554283eeb9ca3888dc2a8d38c77-${{ hashFiles('tools/passportsim/patches/0001-batch-mode.patch') }}-rust-1.93.0-ubuntu-24.04
+          key: passportsim-c94b793413336554283eeb9ca3888dc2a8d38c77-${{ hashFiles('tools/passportsim/patches/**') }}-rust-1.93.0-ubuntu-24.04
       - name: Build or verify pinned passportsim
         run: CARGO_BUILD_JOBS=2 tools/passportsim/setup.sh
       - name: Restore verified firmware store

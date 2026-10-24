@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -18,6 +21,77 @@ def load(name: str, filename: str):
     return module
 
 class CiGateRegressionTests(unittest.TestCase):
+    def test_lvgl_flags_error_is_no_longer_a_chess_limitation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "artifacts").mkdir()
+            (root / "session.log").write_text(
+                ">>> 1: ui --max-nodes 300\nstruct _lv_obj_t has no member flags\n<<< exit 1\n",
+                encoding="utf-8",
+            )
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"corpus": {"chessfd8fa19": {"elf": {"sha256": "abc"}}}}))
+            subprocess.run(
+                [sys.executable, str(ROOT / "summarize-run.py"), "--run-dir", str(root),
+                 "--manifest", str(manifest), "--corpus-id", "chessfd8fa19", "--cli-exit-code", "1"],
+                check=True,
+            )
+            summary = json.loads((root / "summary.json").read_text())
+            self.assertFalse(summary["commands"][0]["accepted"])
+            self.assertIsNone(summary["commands"][0]["known_limitation_reason"])
+
+    def test_missing_go_elf_remains_a_known_ui_skip(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "artifacts").mkdir()
+            (root / "session.log").write_text(
+                ">>> 1: ui --max-nodes 300\nno symbol the app ELF of this firmware\n<<< exit 1\n",
+                encoding="utf-8",
+            )
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"corpus": {"gov011": {}}}))
+            subprocess.run(
+                [sys.executable, str(ROOT / "summarize-run.py"), "--run-dir", str(root),
+                 "--manifest", str(manifest), "--corpus-id", "gov011", "--cli-exit-code", "1"],
+                check=True,
+            )
+            summary = json.loads((root / "summary.json").read_text())
+            self.assertTrue(summary["commands"][0]["accepted"])
+            self.assertEqual(summary["commands"][0]["accepted_as"], "known_limitation")
+
+    def test_ui_tree_is_required_for_chess_and_xxl_but_skipped_for_go(self) -> None:
+        compare = load("compare_runs", "compare-runs.py")
+        base = {
+            "boot_pass": True,
+            "navigation_pass": True,
+            "navigation_checks": {"boot_screenshot_nonblank": True},
+            "screenshot_list": [{"sha256": "same"}],
+            "ui_tree_ok": False,
+            "ui_tree_reason": "missing ELF",
+        }
+        for corpus_id in ("chessfd8fa19", "xxlaba64c1"):
+            result = compare.evaluate([dict(base, corpus_id=corpus_id), dict(base, corpus_id=corpus_id)])
+            self.assertFalse(result["ui_tree_pass"], corpus_id)
+            self.assertFalse(result["passed"], corpus_id)
+        go = compare.evaluate([dict(base, corpus_id="gov011"), dict(base, corpus_id="gov011")])
+        self.assertTrue(go["ui_tree_pass"])
+        self.assertTrue(go["passed"])
+
+    def test_ui_tree_success_allows_chess_and_xxl_gate(self) -> None:
+        compare = load("compare_runs", "compare-runs.py")
+        for corpus_id in ("chessfd8fa19", "xxlaba64c1"):
+            summary = {
+                "corpus_id": corpus_id, "boot_pass": True,
+                "navigation_pass": True,
+                "navigation_checks": {"boot_screenshot_nonblank": True},
+                "screenshot_list": [{"sha256": "same"}], "ui_tree_ok": True,
+            }
+            result = compare.evaluate([summary, summary])
+            self.assertTrue(result["ui_tree_pass"])
+            self.assertTrue(result["passed"])
+            if corpus_id == "xxlaba64c1":
+                self.assertEqual(result["text_quality"], "failing (known font/tofu issue, separately tracked)")
+
     def test_modified_screenshot_fails_golden_comparator(self) -> None:
         compare = load("compare_goldens", "compare-goldens.py")
         with tempfile.TemporaryDirectory() as temp:

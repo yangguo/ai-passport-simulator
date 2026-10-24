@@ -12,6 +12,11 @@ checks on Ubuntu 24.04 for `gov011`, `chessfd8fa19`, and `xxlaba64c1`. The same
 gate is available locally through `tools/passportsim/ci-gate.sh`; it compares
 four checkpoint hashes against firmware-bound JSON goldens and rejects warning
 signatures outside `warning-allowlist/`. Chess PNGs are public and checked in.
+Boot, navigation, and determinism remain required for all three corpora. UI-tree
+inspection is additionally required for `chessfd8fa19` and `xxlaba64c1`; Go
+(`gov011`) remains a known skip while its firmware artifact has no ELF. The xxl
+`text_quality` result remains a separately reported failing-known-tofu check and
+does not change the navigation/UI-tree gate.
 The Go and xiaoxiaole repositories are private, so their expected PNGs remain
 restricted; their JSON hashes still gate navigation. Each run uploads actual
 screenshots, available expected/diff screenshots, session and UART logs, and
@@ -31,8 +36,10 @@ pass.
 - Commit: `c94b793413336554283eeb9ca3888dc2a8d38c77` (`v1.0.3`)
 - Rust toolchain: `1.93.0` from upstream `rust-toolchain.toml`; `setup.sh` selects the minimal host
   toolchain so macOS, Windows, and WASM targets are not downloaded on Linux.
-- Local integration: `patches/0001-batch-mode.patch`, applied with `git apply` after checking out
-  the exact commit.
+- Local integration: sorted `patches/*.patch` files, applied with `git apply` after checking out
+  the exact commit. `0001-batch-mode.patch` provides batch execution;
+  `0002-lvgl-96-object-flags.patch` reconstructs LVGL 9.6 object flags from DWARF bitfields while
+  preserving LVGL 9.5's packed `flags` word.
 
 ## Build and run
 
@@ -83,8 +90,8 @@ navigation from running. Exit 10 is `PASS_WITH_CAVEATS` in the pinned CLI; for t
 runner accepts exit 10 only for those timed run commands. It records the process exit code and each
 command outcome in `summary.json`.
 
-The Go missing-ELF `ui` error and chess LVGL 9.6 `ui` error are recorded as known limitations with
-`ui_tree_ok: false` and a reason. They do not fail the run. The summary checks that the boot
+The Go missing-ELF `ui` error is recorded as a known limitation with `ui_tree_ok: false` and a
+reason. Chess and xiaoxiaole UI-tree errors fail the run. The summary checks that the boot
 screenshot is nonblank and that each navigation screenshot differs from the preceding screen.
 With `--repeat`, `summary.json` also compares all four screenshot hashes across the two runs and
 sets the final exit code to zero exactly when boot, navigation, and determinism pass. For
@@ -95,9 +102,9 @@ known text-quality issue is separate from the navigation and determinism gates.
 
 The 2026-10-22 clean-box runs for all three locked sources are recorded in
 `/workspace/m1-runs/REPORT.md`. Two fresh runs per game passed boot, screenshot-based navigation,
-and screenshot determinism. Go `ui` inspection remains unavailable without an ELF; chess `ui`
-inspection remains unsupported for its LVGL 9.6 layout; xiaoxiaole `ui` inspection passes but its
-known tofu/digit text issue remains. Navigation verifies that the framebuffer changes after each
+and screenshot determinism. Go `ui` inspection remains unavailable without an ELF; the LVGL 9.6
+limitation described by that historical report is addressed by patch 0002. xiaoxiaole `ui`
+inspection passes but its known tofu/digit text issue remains. Navigation verifies that the framebuffer changes after each
 key; it does not yet prove semantic control activation. The ten-run acceptance and warning-policy
 work remain open, and this local evidence does not create a firmware CI gate.
 
@@ -133,8 +140,8 @@ CLI's command docs are in its checkout under `docs/commands/`.
 - The firmware cache is private and outside the repository (Decision 2 in the design document).
   Do not copy its firmware bytes into git. `--update-lock` is an explicit reviewed operation for
   updating expected hashes after inspecting a newly selected artifact.
-- `ui` tree inspection is unavailable for Go without an ELF and unsupported for chess on LVGL
-  9.6. These outcomes stay visible as known limitations in the summary.
+- `ui` tree inspection is unavailable for Go without an ELF. Chess LVGL 9.6 inspection is supported
+  by the second tracked patch and is required to pass when an ELF is present.
 - xiaoxiaole currently has a font/tofu rendering issue. Navigation can be checked, but tofu is not
   an approved text-quality golden.
 - Linux is not listed in upstream `host_parity`; a successful Linux build/run remains an explicit
@@ -146,12 +153,9 @@ CLI's command docs are in its checkout under `docs/commands/`.
 
 ## Verification status for this checkout
 
-Verified on 2026-10-22 with Rust 1.93.0 and the Linux release binary
-`/workspace/m0-cache/src/target/release/passportsim` (SHA-256
-`1e46e382e30d8ba967f7f728b340764c208ba2c959a9a849814ebb49fadc8bd2`). Each game booted, passed
-the three screenshot navigation checks, and produced matching four-screenshot hashes across two
-independently started runs. The setup script recognizes its already-applied batch patch and can be
-rerun safely. The Go and chess UI tree checks are known limitations; timed runs exit 10
-(`PASS_WITH_CAVEATS`) and are accepted by the runner. xiaoxiaole navigation passed while its known
-font/tofu text-quality issue remains failing. Per-game command outcomes, firmware SHA-256 pins, and
-screenshot paths are in `/workspace/m0-runs/REPORT.md` and each game's `summary.json`.
+Verified on 2026-10-24 with Rust 1.93.0. `setup.sh` applied or recognized both patches and built the
+Linux release binary (SHA-256 `e8a42a3685b8034f5cd494c7126b49496c66a4acd447cea32d131c6318c0413d`).
+Two fresh runs each for chess and xiaoxiaole passed boot, navigation, determinism, and all four
+required UI-tree commands. Go remains a known missing-ELF skip. xiaoxiaole `text_quality` remains
+failing separately because of the known tofu/digit issue. Per-run summaries and screenshots are
+under `/tmp/m3-final/` for this verification session.

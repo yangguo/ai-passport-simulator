@@ -57,12 +57,15 @@ if [[ "$actual" != "$revision" ]]; then
   exit 1
 fi
 git -C "$checkout" clean -ffdqx -e target/
-if git -C "$checkout" apply --reverse --check "$script_dir/patches/0001-batch-mode.patch"; then
-  echo 'setup: batch mode patch is already applied'
-else
-  git -C "$checkout" apply --check "$script_dir/patches/0001-batch-mode.patch"
-  git -C "$checkout" apply "$script_dir/patches/0001-batch-mode.patch"
-fi
+for patch in "$script_dir"/patches/*.patch; do
+  if git -C "$checkout" apply --reverse --check "$patch"; then
+    echo "setup: $(basename "$patch") is already applied"
+  else
+    git -C "$checkout" apply --check "$patch"
+    git -C "$checkout" apply "$patch"
+    echo "setup: applied $(basename "$patch")"
+  fi
+done
 
 # RUSTUP_TOOLCHAIN takes precedence over the upstream rust-toolchain.toml, avoiding its
 # macOS/Windows/WASM targets on Linux while retaining the pinned compiler and Cargo.
