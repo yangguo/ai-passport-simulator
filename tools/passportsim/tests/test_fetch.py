@@ -127,13 +127,16 @@ local_seed_dir = "fixture-seed"
         assert local_source["files"]["bin"]["sha256"] == digest(run_bin)
         assert stat.S_IMODE((store / "files/xxlaba64c1/merged.bin").stat().st_mode) == 0o600
         assert calls.read_text().splitlines() == before_local, "local-cache must never invoke gh"
-        os.environ["PASSPORTSIM_XXLABA64C1_BIN"] = str(seed_dir / "merged.bin")
+        bad_env_bin = root / "bad-env-merged.bin"
+        bad_env_bin.write_bytes(b"wrong firmware from the first seed source")
+        os.environ["PASSPORTSIM_XXLABA64C1_BIN"] = str(bad_env_bin)
         os.environ["PASSPORTSIM_XXLABA64C1_ELF"] = str(seed_dir / "ai-passport-xiaoxiaole.elf")
         env_store = root / "env-store"
         env_home = root / "home-env-seed"
         fetch.sys.argv = [str(SCRIPT), "xxlaba64c1", "--home", str(env_home), "--store", str(env_store)]
         assert fetch.main() == 0
         assert (env_store / "files/xxlaba64c1/merged.bin").is_file()
+        assert digest((env_store / "files/xxlaba64c1/merged.bin").read_bytes()) == digest(run_bin)
         assert stat.S_IMODE((env_store / "files/xxlaba64c1/merged.bin").stat().st_mode) == 0o600
         del os.environ["PASSPORTSIM_XXLABA64C1_BIN"]
         del os.environ["PASSPORTSIM_XXLABA64C1_ELF"]

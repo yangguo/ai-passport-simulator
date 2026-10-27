@@ -182,22 +182,32 @@ def main() -> int:
                 actual[key] = expected[key]
                 continue
             env_path = os.environ.get(ENV_NAMES[args.corpus_id][key])
-            seed_path = Path(env_path).expanduser() if env_path else (
-                seed_dir / Path(filename).name if seed_dir else None
-            )
-            if seed_path is None or not seed_path.is_file():
+            candidates = ([Path(env_path).expanduser()] if env_path else [])
+            if seed_dir:
+                candidates.append(seed_dir / Path(filename).name)
+            seed_path = None
+            mismatches: list[tuple[Path, str]] = []
+            for candidate in candidates:
+                if not candidate.is_file():
+                    continue
+                digest = sha256(candidate)
+                if digest == expected[key]:
+                    seed_path = candidate
+                    break
+                mismatches.append((candidate, digest))
+            if seed_path is None and mismatches:
+                bad_path, bad_digest = mismatches[0]
+                raise RuntimeError(
+                    f"SHA-256 mismatch for {args.corpus_id}.{key}: expected {expected[key]}, got {bad_digest} "
+                    f"from {bad_path}; no available local seed matched the pin"
+                )
+            if seed_path is None:
                 seed_help = f" or populate local_seed_dir {seed_dir}" if seed_dir else " or configure local_seed_dir"
                 raise RuntimeError(
                     f"{args.corpus_id} is a temporary local-cache pin; verified {key} firmware is missing. "
                     f"Install {Path(filename).name} under {files_dir}, or set "
                     f"{ENV_NAMES[args.corpus_id][key]} to a matching file{seed_help}" +
                     ". CI skips this corpus until xiaoxiaole publishes a workflow run or release."
-                )
-            digest = sha256(seed_path)
-            if digest != expected[key]:
-                raise RuntimeError(
-                    f"SHA-256 mismatch for {args.corpus_id}.{key}: expected {expected[key]}, got {digest}; "
-                    "the temporary local-cache seed was not installed"
                 )
             shutil.copyfile(seed_path, destination)
             destination.chmod(0o600)
