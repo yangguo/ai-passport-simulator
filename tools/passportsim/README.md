@@ -8,15 +8,17 @@ provenance into each run manifest. Firmware bytes stay outside git.
 ## M2 CI gate
 
 `.github/workflows/firmware-regression.yml` runs sequential two-repeat smoke
-checks on Ubuntu 24.04 for `gov011`, `chessfd8fa19`, and `xxlaba64c1`. The same
+checks on Ubuntu 24.04 for `gov011` and `chessfd8fa19`; it includes
+`xxlaba64c1` when the temporary local-cache files are present and otherwise
+records a documented skip. The same
 gate is available locally through `tools/passportsim/ci-gate.sh`; it compares
 four checkpoint hashes against firmware-bound JSON goldens and rejects warning
 signatures outside `warning-allowlist/`. Chess PNGs are public and checked in.
 Boot, navigation, and determinism remain required for all three corpora. UI-tree
 inspection is additionally required for `chessfd8fa19` and `xxlaba64c1`; Go
-(`gov011`) remains a known skip while its firmware artifact has no ELF. The xxl
-`text_quality` result remains a separately reported failing-known-tofu check and
-does not change the navigation/UI-tree gate.
+(`gov011`) remains a known skip while its firmware artifact has no ELF. Xiaoxiaole
+`text_quality` is now recorded as `pass` after visual review of the font-fix
+pin screenshots (CJK and digits render clearly at the navigation checkpoints).
 The Go and xiaoxiaole repositories are private, so their expected PNGs remain
 restricted; their JSON hashes still gate navigation. Each run uploads actual
 screenshots, available expected/diff screenshots, session and UART logs, and
@@ -25,10 +27,36 @@ source override with exact repository, workflow run, artifact, and expected
 SHA-256 values. Pull requests from forks receive a skip notice because they do
 not receive the private firmware read token.
 
-The current xiaoxiaole checkpoints are labeled `failing-known-tofu`. Their
-pixel baselines test navigation only. A separate non-blocking workflow step
-reports the text-quality failure; it does not turn the known tofu into a text
-pass.
+Xiaoxiaole is temporarily pinned to the local font-fix build at source commit
+`57a23fc5e093696cc0c226c1d265969a3fadc4e2`, with the merged binary and ELF
+verified by SHA-256. No GitHub Actions run or release exists for that commit
+yet. The `xxlaba64c1` cache files are therefore not available on a clean CI
+runner: the gate records an explicit nonblocking `SKIP` for this corpus until
+xiaoxiaole publishes a run or release. If CI already has matching files in
+its verified store, or both firmware overrides are supplied, it runs normally.
+
+The temporary pin uses the private store
+`$PASSPORTSIM_FIRMWARE_STORE/files/xxlaba64c1/` (default
+`~/.cache/apsim/firmware/files/xxlaba64c1/`) and expects `merged.bin` and
+`ai-passport-xiaoxiaole.elf`. The fetcher checks both locked hashes, uses
+matching store files first, then can seed from `PASSPORTSIM_XXLABA64C1_BIN` /
+`PASSPORTSIM_XXLABA64C1_ELF`, then the optional lock field `local_seed_dir`.
+Seeded copies are installed with mode `0600` and rechecked. If none are
+available, fetch fails with installation guidance; CI's gate detects that
+condition before the run and records why it skipped. To install manually:
+
+```sh
+install -d -m 700 ~/.cache/apsim/firmware/files/xxlaba64c1
+install -m 600 /workspace/xxl-fw/digit-tofu/merged.bin ~/.cache/apsim/firmware/files/xxlaba64c1/merged.bin
+install -m 600 /workspace/xxl-fw/digit-tofu/ai-passport-xiaoxiaole.elf ~/.cache/apsim/firmware/files/xxlaba64c1/ai-passport-xiaoxiaole.elf
+sha256sum ~/.cache/apsim/firmware/files/xxlaba64c1/*
+```
+
+Local smoke against the temporary pin passed boot, navigation, UI-tree, and
+determinism. Checkpoint PNG hashes matched the prior navigation baselines;
+golden JSON was updated to the new `merged.bin` SHA-256 and `text_quality`
+was set to `pass` after inspecting `01-boot` / `04-after-ok` (clear CJK and
+digits such as 第1关 / 150分 / 12步). Private expected PNGs stay out of git.
 
 ## Pins
 
@@ -64,10 +92,9 @@ tools/passportsim/run-game.sh --repeat xxlaba64c1 /workspace/m1-runs/xxlaba64c1
 The source inventory points to [Go](https://github.com/yangguo/ai-passport-go) release `v0.1.1`
 (source `0762e467c8b1759294aa78694fa918f81683930c`), [chess](https://github.com/yangguo/ai-passport-chess)
 run `38233745799` (source `fd8fa19718acb60971bcb33ef9738c1d959d4914`; the PR artifact name uses merge commit `09ab758…`, not this head commit), and
-[xiaoxiaole](https://github.com/yangguo/ai-passport-xiaoxiaole) run `38265044174` (source
-`aba64c1a41613e8cbc60289dd9c57d1f431bed5a`). Chess and xiaoxiaole artifacts currently expire
-2027-01-10; xiaoxiaole's selected run is from `feat/level-variety`, because its firmware workflow
-is not yet on `main`. Go's release and inspected CI zip contain no ELF, so Go `ui` tree inspection
+[xiaoxiaole](https://github.com/yangguo/ai-passport-xiaoxiaole) is temporarily pinned to local
+firmware from `57a23fc5e093696cc0c226c1d265969a3fadc4e2`; it has no published Actions run yet.
+Chess's artifact currently expires 2027-01-10. Go's release and inspected CI zip contain no ELF, so Go `ui` tree inspection
 is unavailable until its workflow publishes one. Expired or missing artifacts fail with an
 instruction to pin a reviewed replacement; the fetcher never falls back to a moving branch.
 
@@ -94,9 +121,8 @@ The Go missing-ELF `ui` error is recorded as a known limitation with `ui_tree_ok
 reason. Chess and xiaoxiaole UI-tree errors fail the run. The summary checks that the boot
 screenshot is nonblank and that each navigation screenshot differs from the preceding screen.
 With `--repeat`, `summary.json` also compares all four screenshot hashes across the two runs and
-sets the final exit code to zero exactly when boot, navigation, and determinism pass. For
-`xxlaba64c1`, `text_quality` records `failing (known font/tofu issue, separately tracked)`; that
-known text-quality issue is separate from the navigation and determinism gates.
+sets the final exit code to zero exactly when boot, navigation, and determinism pass. Xiaoxiaole
+`text_quality` is recorded as `pass` on the temporary font-fix pin after visual review.
 
 ## M1 execution evidence
 
@@ -104,9 +130,10 @@ The 2026-10-22 clean-box runs for all three locked sources are recorded in
 `/workspace/m1-runs/REPORT.md`. Two fresh runs per game passed boot, screenshot-based navigation,
 and screenshot determinism. Go `ui` inspection remains unavailable without an ELF; the LVGL 9.6
 limitation described by that historical report is addressed by patch 0002. xiaoxiaole `ui`
-inspection passes but its known tofu/digit text issue remains. Navigation verifies that the framebuffer changes after each
-key; it does not yet prove semantic control activation. The ten-run acceptance and warning-policy
-work remain open, and this local evidence does not create a firmware CI gate.
+inspection passes. Historical tofu/digit notes apply to the pre-font-fix pin only.
+Navigation verifies that the framebuffer changes after each key; it does not yet prove semantic
+control activation. The ten-run acceptance and warning-policy work remain open, and this local
+evidence does not create a firmware CI gate.
 
 The M0 game sequence is:
 
@@ -142,8 +169,8 @@ CLI's command docs are in its checkout under `docs/commands/`.
   updating expected hashes after inspecting a newly selected artifact.
 - `ui` tree inspection is unavailable for Go without an ELF. Chess LVGL 9.6 inspection is supported
   by the second tracked patch and is required to pass when an ELF is present.
-- xiaoxiaole currently has a font/tofu rendering issue. Navigation can be checked, but tofu is not
-  an approved text-quality golden.
+- xiaoxiaole's temporary font-fix pin (`57a23fc…`) is recorded with `text_quality: pass` after
+  visual review; replace this pin with a published Actions/release artifact when available.
 - Linux is not listed in upstream `host_parity`; a successful Linux build/run remains an explicit
   integration result, not an upstream support claim.
 - These game images are ESP-IDF 5.5.3 coverage. XiaoZhi's IDF 5.5.3 compatibility build is interim
@@ -156,6 +183,6 @@ CLI's command docs are in its checkout under `docs/commands/`.
 Verified on 2026-10-24 with Rust 1.93.0. `setup.sh` applied or recognized both patches and built the
 Linux release binary (SHA-256 `e8a42a3685b8034f5cd494c7126b49496c66a4acd447cea32d131c6318c0413d`).
 Two fresh runs each for chess and xiaoxiaole passed boot, navigation, determinism, and all four
-required UI-tree commands. Go remains a known missing-ELF skip. xiaoxiaole `text_quality` remains
-failing separately because of the known tofu/digit issue. Per-run summaries and screenshots are
-under `/tmp/m3-final/` for this verification session.
+required UI-tree commands. Go remains a known missing-ELF skip. Xiaoxiaole's temporary font-fix
+pin later recorded `text_quality: pass` after visual review (see golden JSON). Per-run summaries
+and screenshots for the M3 verification session are under `/tmp/m3-final/`.

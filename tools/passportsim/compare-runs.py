@@ -31,8 +31,6 @@ def evaluate(summaries):
         "runs": summaries,
         "determinism": {"screenshot_hashes_match": same, "checked_screenshots": min(map(len, hashes))},
     }
-    if corpus_id == "xxlaba64c1":
-        result["text_quality"] = "failing (known font/tofu issue, separately tracked)"
     return result
 
 

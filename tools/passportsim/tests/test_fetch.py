@@ -91,6 +91,18 @@ bin_member = "merged.bin"
 bin_sha256 = "{digest(run_bin)}"
 elf_member = "ai-passport-chess.elf"
 elf_sha256 = "{digest(run_elf)}"
+
+[corpora.xxlaba64c1]
+repo = "fixture/xxl"
+kind = "local-cache"
+temporary = true
+temporary_reason = "awaiting published run"
+source_commit = "57a23fc5e093696cc0c226c1d265969a3fadc4e2"
+bin_member = "merged.bin"
+bin_sha256 = "{digest(run_bin)}"
+elf_member = "ai-passport-xiaoxiaole.elf"
+elf_sha256 = "{digest(run_elf)}"
+local_seed_dir = "fixture-seed"
 ''', encoding="utf-8")
         fetch.LOCK = lock
         store = root / "private-store"
@@ -101,6 +113,44 @@ elf_sha256 = "{digest(run_elf)}"
             manifest = json.loads((home / "firmware-manifest.json").read_text())
             assert manifest["sources"][corpus_id]["source_commit"].startswith("commit-")
             assert (home / "config" / "corpus.toml").is_file()
+        seed_dir = root / "fixture-seed"
+        seed_dir.mkdir()
+        (seed_dir / "merged.bin").write_bytes(run_bin)
+        (seed_dir / "ai-passport-xiaoxiaole.elf").write_bytes(run_elf)
+        before_local = calls.read_text().splitlines()
+        local_home = root / "home-local-cache"
+        fetch.sys.argv = [str(SCRIPT), "xxlaba64c1", "--home", str(local_home), "--store", str(store)]
+        assert fetch.main() == 0
+        local_source = json.loads((local_home / "firmware-manifest.json").read_text())["sources"]["xxlaba64c1"]
+        assert local_source["kind"] == "local-cache" and local_source["temporary"] is True
+        assert local_source["source_commit"] == "57a23fc5e093696cc0c226c1d265969a3fadc4e2"
+        assert local_source["files"]["bin"]["sha256"] == digest(run_bin)
+        assert stat.S_IMODE((store / "files/xxlaba64c1/merged.bin").stat().st_mode) == 0o600
+        assert calls.read_text().splitlines() == before_local, "local-cache must never invoke gh"
+        bad_env_bin = root / "bad-env-merged.bin"
+        bad_env_bin.write_bytes(b"wrong firmware from the first seed source")
+        os.environ["PASSPORTSIM_XXLABA64C1_BIN"] = str(bad_env_bin)
+        os.environ["PASSPORTSIM_XXLABA64C1_ELF"] = str(seed_dir / "ai-passport-xiaoxiaole.elf")
+        env_store = root / "env-store"
+        env_home = root / "home-env-seed"
+        fetch.sys.argv = [str(SCRIPT), "xxlaba64c1", "--home", str(env_home), "--store", str(env_store)]
+        assert fetch.main() == 0
+        assert (env_store / "files/xxlaba64c1/merged.bin").is_file()
+        assert digest((env_store / "files/xxlaba64c1/merged.bin").read_bytes()) == digest(run_bin)
+        assert stat.S_IMODE((env_store / "files/xxlaba64c1/merged.bin").stat().st_mode) == 0o600
+        del os.environ["PASSPORTSIM_XXLABA64C1_BIN"]
+        del os.environ["PASSPORTSIM_XXLABA64C1_ELF"]
+        import shutil
+        shutil.rmtree(seed_dir)
+        empty_store = root / "empty-store"
+        fetch.sys.argv = [str(SCRIPT), "xxlaba64c1", "--home", str(root / "home-missing"), "--store", str(empty_store)]
+        try:
+            fetch.main()
+        except RuntimeError as error:
+            assert "temporary local-cache pin" in str(error)
+            assert "CI skips this corpus" in str(error)
+        else:
+            raise AssertionError("missing local-cache firmware should fail with install guidance")
         before = calls.read_text().splitlines()
         fetch.sys.argv = [str(SCRIPT), "gov011", "--home", str(root / "home-repeat"), "--store", str(store)]
         assert fetch.main() == 0

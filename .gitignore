@@ -1,3 +1,4 @@
 build/
 .firecrawl/
 tools/passportsim/__pycache__/
+tools/passportsim/tests/__pycache__/
