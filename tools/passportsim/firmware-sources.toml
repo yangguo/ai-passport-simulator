@@ -24,12 +24,15 @@ elf_member = "ai-passport-chess.elf"
 elf_sha256 = "52538a8479d252a6acede546fb2de096d8ddedc9c2f8e8dafa0f9e78cc57c238"
 
 [corpora.xxlaba64c1]
+# TEMPORARY: font-fix local build at 57a23fc5e093696cc0c226c1d265969a3fadc4e2.
+# No GitHub Actions run exists yet. Replace this local pin with a run/release pin
+# when xiaoxiaole publishes one. CI skips this corpus while kind is local-cache.
 repo = "yangguo/ai-passport-xiaoxiaole"
-kind = "run"
-run_id = 38265044174
-artifact = "firmware-aba64c1a41613e8cbc60289dd9c57d1f431bed5a"
-source_commit = "aba64c1a41613e8cbc60289dd9c57d1f431bed5a"
+kind = "local-cache"
+temporary = true
+temporary_reason = "Font-fix local build pending a published xiaoxiaole Actions run or release."
+source_commit = "57a23fc5e093696cc0c226c1d265969a3fadc4e2"
 bin_member = "merged.bin"
-bin_sha256 = "67c68824cd8524e483b4eeb5677c44601bf0da22e14123f8fc215269ee6cb890"
+bin_sha256 = "af050c2ee241470ffda05a6856d9b11d14037ad3c3e8bf2c75a80d8e90661e7b"
 elf_member = "ai-passport-xiaoxiaole.elf"
-elf_sha256 = "54c9e5dc08b5c6d3b9cc03c14300bb62b59801c0410214307116f33e39601cac"
+elf_sha256 = "836e1862d7e3792afac6a239e55b54c5dd3fe41b963c2d2708072eb0a221ceed"

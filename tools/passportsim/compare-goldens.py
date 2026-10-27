@@ -112,11 +112,11 @@ def run(run_dir: Path, corpus_id: str, update: bool = False) -> dict[str, object
             width, height = image.size
         old = existing.get("checkpoints", {}).get(checkpoint, {})
         text_quality = old.get("text_quality") if isinstance(old, dict) else None
-        if corpus_id == "xxlaba64c1":
-            text_quality = "failing-known-tofu"
+        if corpus_id == "xxlaba64c1" and (not existing or existing.get("firmware_sha256") != firmware):
+            text_quality = "unassessed"
         if update:
-            if text_quality == "failing-known-tofu":
-                print(f"{corpus_id}/{checkpoint}: recording navigation baseline; text quality remains failing-known-tofu")
+            if corpus_id == "xxlaba64c1" and text_quality == "unassessed":
+                print(f"{corpus_id}/{checkpoint}: recording navigation baseline; text quality requires visual assessment")
             checkpoints[checkpoint] = {
                 "sha256": sha256_file(actual_path), "width": width, "height": height,
                 **({"text_quality": text_quality} if text_quality else {}),
@@ -141,14 +141,26 @@ def run(run_dir: Path, corpus_id: str, update: bool = False) -> dict[str, object
         else:
             for checkpoint in CHECKPOINTS:
                 (golden_dir / f"{checkpoint}.png").unlink(missing_ok=True)
-        return {"passed": True, "updated": True, "firmware_sha256": firmware, "checkpoints": checkpoints}
-    text_failed = corpus_id == "xxlaba64c1"
+        return {"passed": True, "updated": True, "firmware_sha256": firmware,
+                "checkpoints": checkpoints, "text_quality_pass": None,
+                "text_quality": "unassessed"}
+    qualities = {
+        item.get("text_quality")
+        for item in existing.get("checkpoints", {}).values()
+        if isinstance(item, dict) and item.get("text_quality")
+    }
+    text_quality = (
+        "failing-known-tofu" if "failing-known-tofu" in qualities
+        else "pass" if qualities and qualities == {"pass"}
+        else "unassessed"
+    )
+    text_quality_pass = True if text_quality == "pass" else False if text_quality == "failing-known-tofu" else None
     result = {"passed": all(item["passed"] for item in results), "updated": False,
               "firmware_sha256": firmware, "checkpoints": results,
-              "text_quality_pass": not text_failed,
-              "text_quality": "failing-known-tofu" if text_failed else "unassessed"}
-    if text_failed:
-        print("TEXT QUALITY: FAIL (known tofu checkpoints; navigation pixels remain gated)", file=sys.stderr)
+              "text_quality_pass": text_quality_pass,
+              "text_quality": text_quality}
+    if text_quality == "failing-known-tofu":
+        print("TEXT QUALITY: FAIL (reviewed golden metadata marks known tofu; navigation pixels remain gated)", file=sys.stderr)
     (run_dir / "golden-results.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 

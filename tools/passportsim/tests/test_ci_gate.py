@@ -21,6 +21,22 @@ def load(name: str, filename: str):
     return module
 
 class CiGateRegressionTests(unittest.TestCase):
+    def test_missing_temporary_local_cache_is_an_explicit_nonblocking_skip(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = dict(__import__("os").environ)
+            env["PASSPORTSIM_FIRMWARE_STORE"] = str(root / "empty-store")
+            result = subprocess.run(
+                [str(ROOT / "ci-gate.sh"), "--corpora", "xxlaba64c1", "--runs-root", str(root / "runs")],
+                cwd=ROOT.parents[1], env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("CI skips xxlaba64c1", result.stdout)
+            summary = json.loads((root / "runs" / "summary.json").read_text())
+            self.assertTrue(summary["passed"])
+            self.assertTrue(summary["corpora"][0]["skipped"])
+            self.assertIn("until xiaoxiaole publishes", summary["corpora"][0]["skip_reason"])
+
     def test_lvgl_flags_error_is_no_longer_a_chess_limitation(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -59,6 +75,21 @@ class CiGateRegressionTests(unittest.TestCase):
             self.assertTrue(summary["commands"][0]["accepted"])
             self.assertEqual(summary["commands"][0]["accepted_as"], "known_limitation")
 
+    def test_temporary_xxl_text_quality_is_unassessed_in_run_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "artifacts").mkdir()
+            (root / "session.log").write_text("", encoding="utf-8")
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"corpus": {"xxlaba64c1": {"elf": {"sha256": "abc"}}}}))
+            subprocess.run(
+                [sys.executable, str(ROOT / "summarize-run.py"), "--run-dir", str(root),
+                 "--manifest", str(manifest), "--corpus-id", "xxlaba64c1", "--cli-exit-code", "0"],
+                check=True,
+            )
+            summary = json.loads((root / "summary.json").read_text())
+            self.assertEqual(summary["text_quality"], "unassessed (temporary font-fix pin)")
+
     def test_ui_tree_is_required_for_chess_and_xxl_but_skipped_for_go(self) -> None:
         compare = load("compare_runs", "compare-runs.py")
         base = {
@@ -90,7 +121,7 @@ class CiGateRegressionTests(unittest.TestCase):
             self.assertTrue(result["ui_tree_pass"])
             self.assertTrue(result["passed"])
             if corpus_id == "xxlaba64c1":
-                self.assertEqual(result["text_quality"], "failing (known font/tofu issue, separately tracked)")
+                self.assertEqual(result["text_quality"], "unassessed (temporary font-fix pin)")
 
     def test_modified_screenshot_fails_golden_comparator(self) -> None:
         compare = load("compare_goldens", "compare-goldens.py")
@@ -114,6 +145,28 @@ class CiGateRegressionTests(unittest.TestCase):
             self.assertEqual(result["changed_pixels"], 1)
             self.assertTrue((root / "out" / "01-boot.actual.png").is_file())
             self.assertTrue((root / "out" / "01-boot.diff.png").is_file())
+
+    def test_new_xxl_firmware_golden_is_text_unassessed_and_keeps_png_private(self) -> None:
+        compare = load("compare_goldens", "compare-goldens.py")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            compare.GOLDENS = root / "goldens"
+            run = root
+            artifacts = run / "run1" / "artifacts"
+            artifacts.mkdir(parents=True)
+            for checkpoint in compare.CHECKPOINTS:
+                Image.new("RGB", (3, 2), (1, 2, 3)).save(artifacts / f"{checkpoint}.png")
+            home = run / "run1" / "home"
+            home.mkdir()
+            (home / "firmware-manifest.json").write_text(json.dumps({
+                "corpus": {"xxlaba64c1": {"bin": {"sha256": "font-fix-hash"}}}
+            }))
+            result = compare.run(run, "xxlaba64c1", update=True)
+            self.assertEqual(result["text_quality"], "unassessed")
+            self.assertIsNone(result["text_quality_pass"])
+            metadata = json.loads((compare.GOLDENS / "xxlaba64c1" / "golden.json").read_text())
+            self.assertTrue(all(item["text_quality"] == "unassessed" for item in metadata["checkpoints"].values()))
+            self.assertFalse(any((compare.GOLDENS / "xxlaba64c1").glob("*.png")))
 
     def test_unallowlisted_warning_fails_warning_gate(self) -> None:
         warnings = load("check_warnings", "check-warnings.py")

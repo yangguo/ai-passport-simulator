@@ -43,6 +43,50 @@ for corpus_id in "${corpus_list[@]}"; do
   run_dir="$runs_root/$corpus_id"
   rm -rf -- "$run_dir"
   mkdir -p "$run_dir"
+  if [[ "$corpus_id" == xxlaba64c1 ]]; then
+    skip_reason="$(python3 - "$script_dir/firmware-sources.toml" <<'PY'
+import hashlib
+import os
+from pathlib import Path
+import sys
+import tomllib
+
+entry = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))["corpora"]["xxlaba64c1"]
+if entry.get("kind") == "local-cache":
+    override_names = ("PASSPORTSIM_XXLABA64C1_BIN", "PASSPORTSIM_XXLABA64C1_ELF")
+    source_override = os.environ.get("PASSPORTSIM_OVERRIDE_CORPUS_ID") == "xxlaba64c1"
+    if not source_override and not any(os.environ.get(name) for name in override_names):
+        store = Path(os.environ.get("PASSPORTSIM_FIRMWARE_STORE", "~/.cache/apsim/firmware")).expanduser()
+        files_dir = store / "files" / "xxlaba64c1"
+        expected = {
+            "bin": (entry["bin_member"], entry["bin_sha256"]),
+            "elf": (entry["elf_member"], entry["elf_sha256"]),
+        }
+        def digest(path):
+            value = hashlib.sha256()
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    value.update(block)
+            return value.hexdigest()
+        if not all((files_dir / name).is_file() and digest(files_dir / name) == sha
+                   for name, sha in expected.values()):
+            print("temporary local-cache pin unavailable in verified firmware store and no PASSPORTSIM_XXLABA64C1_BIN/ELF overrides are set; CI skips xxlaba64c1 until xiaoxiaole publishes a workflow run or release")
+PY
+    )"
+    if [[ -n "$skip_reason" ]]; then
+      printf '%s\n' "$skip_reason"
+      python3 - "$run_dir/gate-result.json" "$skip_reason" <<'PY'
+import json
+import sys
+from pathlib import Path
+Path(sys.argv[1]).write_text(json.dumps({
+    "corpus_id": "xxlaba64c1", "passed": True, "skipped": True,
+    "skip_reason": sys.argv[2], "text_quality": "not-run",
+}, indent=2) + "\n", encoding="utf-8")
+PY
+      continue
+    fi
+  fi
   echo "=== firmware regression: $corpus_id ==="
   set +e
   "$script_dir/run-game.sh" --repeat "$corpus_id" "$run_dir"
@@ -60,7 +104,18 @@ for corpus_id in "${corpus_list[@]}"; do
   fi
   set -e
   text_quality="pass"
-  [[ "$corpus_id" != xxlaba64c1 ]] || text_quality="failing-known-tofu (non-blocking)"
+  if [[ "$corpus_id" == xxlaba64c1 ]]; then
+    text_quality="unassessed (temporary font-fix pin)"
+    if [[ -f "$run_dir/golden-results.json" ]]; then
+      text_quality="$(python3 - "$run_dir/golden-results.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("text_quality", "unassessed"))
+PY
+      )"
+    fi
+  fi
   python3 - "$run_dir" "$corpus_id" "$run_rc" "$golden_rc" "$warning_rc" "$text_quality" <<'PY'
 import json
 import sys
@@ -91,6 +146,8 @@ payload = {"passed": int(sys.argv[2]) == 0, "corpora": results}
 (root / "summary.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 print("firmware gate:", "PASS" if payload["passed"] else "FAIL")
 for result in results:
-    print(f"  {result['corpus_id']}: {'PASS' if result['passed'] else 'FAIL'}; text={result['text_quality']}")
+    status = "SKIP" if result.get("skipped") else "PASS" if result["passed"] else "FAIL"
+    detail = result.get("skip_reason", f"text={result['text_quality']}")
+    print(f"  {result['corpus_id']}: {status}; {detail}")
 PY
 exit "$overall"

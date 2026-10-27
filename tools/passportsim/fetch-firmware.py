@@ -169,21 +169,60 @@ def main() -> int:
     paths: dict[str, Path] = {}
     actual: dict[str, str] = {}
     missing = False
-    for key, filename in names.items():
-        env_path = os.environ.get(ENV_NAMES[args.corpus_id][key])
-        if env_path:
-            path = Path(env_path).expanduser().resolve()
-            if not path.is_file():
-                raise RuntimeError(f"configured {key} file does not exist: {path}")
-            paths[key] = path
-            actual[key] = sha256(path)
-            continue
-        path = files_dir / Path(filename).name
-        if not path.is_file() or (not args.update_lock and sha256(path) != expected[key]):
-            missing = True
-        else:
-            paths[key] = path
-            actual[key] = sha256(path)
+    if entry["kind"] == "local-cache":
+        if args.update_lock:
+            raise RuntimeError("--update-lock is not supported for a pinned local-cache source")
+        seed_dir = Path(str(entry["local_seed_dir"])).expanduser() if entry.get("local_seed_dir") else None
+        if seed_dir is not None and not seed_dir.is_absolute():
+            seed_dir = (LOCK.parent / seed_dir).resolve()
+        for key, filename in names.items():
+            destination = files_dir / Path(filename).name
+            if destination.is_file() and sha256(destination) == expected[key]:
+                paths[key] = destination
+                actual[key] = expected[key]
+                continue
+            env_path = os.environ.get(ENV_NAMES[args.corpus_id][key])
+            seed_path = Path(env_path).expanduser() if env_path else (
+                seed_dir / Path(filename).name if seed_dir else None
+            )
+            if seed_path is None or not seed_path.is_file():
+                seed_help = f" or populate local_seed_dir {seed_dir}" if seed_dir else " or configure local_seed_dir"
+                raise RuntimeError(
+                    f"{args.corpus_id} is a temporary local-cache pin; verified {key} firmware is missing. "
+                    f"Install {Path(filename).name} under {files_dir}, or set "
+                    f"{ENV_NAMES[args.corpus_id][key]} to a matching file{seed_help}" +
+                    ". CI skips this corpus until xiaoxiaole publishes a workflow run or release."
+                )
+            digest = sha256(seed_path)
+            if digest != expected[key]:
+                raise RuntimeError(
+                    f"SHA-256 mismatch for {args.corpus_id}.{key}: expected {expected[key]}, got {digest}; "
+                    "the temporary local-cache seed was not installed"
+                )
+            shutil.copyfile(seed_path, destination)
+            destination.chmod(0o600)
+            installed_digest = sha256(destination)
+            if installed_digest != expected[key]:
+                destination.unlink(missing_ok=True)
+                raise RuntimeError(f"SHA-256 mismatch after installing {args.corpus_id}.{key} into the private store")
+            paths[key] = destination
+            actual[key] = installed_digest
+    else:
+        for key, filename in names.items():
+            env_path = os.environ.get(ENV_NAMES[args.corpus_id][key])
+            if env_path:
+                path = Path(env_path).expanduser().resolve()
+                if not path.is_file():
+                    raise RuntimeError(f"configured {key} file does not exist: {path}")
+                paths[key] = path
+                actual[key] = sha256(path)
+                continue
+            path = files_dir / Path(filename).name
+            if not path.is_file() or (not args.update_lock and sha256(path) != expected[key]):
+                missing = True
+            else:
+                paths[key] = path
+                actual[key] = sha256(path)
     if missing:
         with tempfile.TemporaryDirectory(prefix=f"{args.corpus_id}-", dir=store) as tmp:
             scratch = Path(tmp)
@@ -217,6 +256,9 @@ def main() -> int:
         "files": {key: {"path": str(paths[key]), "sha256": actual[key]} for key in names},
         "elf_unavailable_reason": entry.get("elf_unavailable_reason"),
     }
+    if entry["kind"] == "local-cache":
+        provenance["temporary"] = bool(entry.get("temporary", False))
+        provenance["temporary_reason"] = entry.get("temporary_reason")
     configure(args.home, args.corpus_id, paths, provenance)
     print(json.dumps(provenance, indent=2))
     return 0

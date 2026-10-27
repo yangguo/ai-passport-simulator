@@ -100,7 +100,7 @@ jobs:
           PASSPORTSIM_OVERRIDE_BIN_SHA256: ${{ inputs.expected_bin_sha256 }}
           PASSPORTSIM_OVERRIDE_ELF_SHA256: ${{ inputs.expected_elf_sha256 }}
         run: tools/passportsim/ci-gate.sh --corpora "$CORPUS_IDS" --runs-root "$M2_RUNS_ROOT"
-      - name: Report known xiaoxiaole text-quality failure
+      - name: Report xiaoxiaole text-quality result
         if: always() && contains(inputs.corpus_ids || github.event.inputs.corpus_ids || 'gov011,chessfd8fa19,xxlaba64c1', 'xxlaba64c1')
         continue-on-error: true
         run: |
@@ -108,9 +108,16 @@ jobs:
           import json, sys
           from pathlib import Path
           root = Path(sys.argv[1])
+          gate = json.loads((root / "gate-result.json").read_text())
+          if gate.get("skipped"):
+              print("::notice::xxlaba64c1 text quality was not run because the temporary local-cache pin is unavailable in CI")
+              raise SystemExit(0)
+          if not (root / "golden-results.json").is_file():
+              print("::notice::xxlaba64c1 text quality was not assessed in this run")
+              raise SystemExit(0)
           result = json.loads((root / "golden-results.json").read_text())
-          if not result.get("text_quality_pass"):
-              print("::error::xxlaba64c1 text quality FAIL: known tofu; navigation pixel gate is independent")
+          if result.get("text_quality") == "failing-known-tofu" and result.get("text_quality_pass") is False:
+              print("::error::xxlaba64c1 text quality FAIL; navigation pixel gate is independent")
               raise SystemExit(1)
           PY
       - name: Upload firmware regression diagnostics

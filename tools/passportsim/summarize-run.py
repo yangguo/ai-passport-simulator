@@ -91,7 +91,7 @@ for field, previous_name, current_name in [
         navigation[field] = by_name[previous_name]["sha256"] != by_name[current_name]["sha256"]
 navigation_pass = all(navigation.values())
 text_quality = (
-    "failing (known font/tofu issue, separately tracked)"
+    "unassessed (temporary font-fix pin)"
     if args.corpus_id == "xxlaba64c1" else None
 )
 command_failures = [item for item in commands if not item["accepted"]]
