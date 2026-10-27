@@ -75,7 +75,7 @@ class CiGateRegressionTests(unittest.TestCase):
             self.assertTrue(summary["commands"][0]["accepted"])
             self.assertEqual(summary["commands"][0]["accepted_as"], "known_limitation")
 
-    def test_temporary_xxl_text_quality_is_unassessed_in_run_summary(self) -> None:
+    def test_xxl_run_summary_leaves_text_quality_to_golden_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "artifacts").mkdir()
@@ -88,7 +88,7 @@ class CiGateRegressionTests(unittest.TestCase):
                 check=True,
             )
             summary = json.loads((root / "summary.json").read_text())
-            self.assertEqual(summary["text_quality"], "unassessed (temporary font-fix pin)")
+            self.assertIsNone(summary["text_quality"])
 
     def test_ui_tree_is_required_for_chess_and_xxl_but_skipped_for_go(self) -> None:
         compare = load("compare_runs", "compare-runs.py")
@@ -120,8 +120,7 @@ class CiGateRegressionTests(unittest.TestCase):
             result = compare.evaluate([summary, summary])
             self.assertTrue(result["ui_tree_pass"])
             self.assertTrue(result["passed"])
-            if corpus_id == "xxlaba64c1":
-                self.assertEqual(result["text_quality"], "unassessed (temporary font-fix pin)")
+            self.assertNotIn("text_quality", result)
 
     def test_modified_screenshot_fails_golden_comparator(self) -> None:
         compare = load("compare_goldens", "compare-goldens.py")

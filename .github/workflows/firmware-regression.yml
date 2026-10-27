@@ -119,6 +119,10 @@ jobs:
           if result.get("text_quality") == "failing-known-tofu" and result.get("text_quality_pass") is False:
               print("::error::xxlaba64c1 text quality FAIL; navigation pixel gate is independent")
               raise SystemExit(1)
+          if result.get("text_quality") == "pass" and result.get("text_quality_pass") is True:
+              print("::notice::xxlaba64c1 text quality PASS (temporary font-fix pin, visual review)")
+              raise SystemExit(0)
+          print(f"::notice::xxlaba64c1 text quality={result.get('text_quality')!r}")
           PY
       - name: Upload firmware regression diagnostics
         if: always()

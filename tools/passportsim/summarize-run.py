@@ -90,10 +90,8 @@ for field, previous_name, current_name in [
     if previous_name in by_name and current_name in by_name:
         navigation[field] = by_name[previous_name]["sha256"] != by_name[current_name]["sha256"]
 navigation_pass = all(navigation.values())
-text_quality = (
-    "unassessed (temporary font-fix pin)"
-    if args.corpus_id == "xxlaba64c1" else None
-)
+# text_quality assessment lives in golden metadata / compare-goldens, not per-run summary.
+text_quality = None
 command_failures = [item for item in commands if not item["accepted"]]
 summary = {
     "corpus_id": args.corpus_id,

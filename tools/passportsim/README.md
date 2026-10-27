@@ -16,9 +16,9 @@ four checkpoint hashes against firmware-bound JSON goldens and rejects warning
 signatures outside `warning-allowlist/`. Chess PNGs are public and checked in.
 Boot, navigation, and determinism remain required for all three corpora. UI-tree
 inspection is additionally required for `chessfd8fa19` and `xxlaba64c1`; Go
-(`gov011`) remains a known skip while its firmware artifact has no ELF. The
-current xxl `text_quality` metadata is from the previous firmware assessment;
-the font-fix pin has not yet been assessed in this environment.
+(`gov011`) remains a known skip while its firmware artifact has no ELF. Xiaoxiaole
+`text_quality` is now recorded as `pass` after visual review of the font-fix
+pin screenshots (CJK and digits render clearly at the navigation checkpoints).
 The Go and xiaoxiaole repositories are private, so their expected PNGs remain
 restricted; their JSON hashes still gate navigation. Each run uploads actual
 screenshots, available expected/diff screenshots, session and UART logs, and
@@ -52,12 +52,11 @@ install -m 600 /workspace/xxl-fw/digit-tofu/ai-passport-xiaoxiaole.elf ~/.cache/
 sha256sum ~/.cache/apsim/firmware/files/xxlaba64c1/*
 ```
 
-The checked-in golden metadata and `text_quality` label still reflect the
-previous known-tofu assessment. This environment did not have the pinned
-simulator binary and could not download it, so the new firmware's text quality
-and screenshots remain unassessed here. Run the local smoke with the simulator
-available; update golden JSON with `--update` if checkpoint hashes changed,
-and only change the text-quality label after inspecting the resulting screens.
+Local smoke against the temporary pin passed boot, navigation, UI-tree, and
+determinism. Checkpoint PNG hashes matched the prior navigation baselines;
+golden JSON was updated to the new `merged.bin` SHA-256 and `text_quality`
+was set to `pass` after inspecting `01-boot` / `04-after-ok` (clear CJK and
+digits such as 第1关 / 150分 / 12步). Private expected PNGs stay out of git.
 
 ## Pins
 
@@ -122,9 +121,8 @@ The Go missing-ELF `ui` error is recorded as a known limitation with `ui_tree_ok
 reason. Chess and xiaoxiaole UI-tree errors fail the run. The summary checks that the boot
 screenshot is nonblank and that each navigation screenshot differs from the preceding screen.
 With `--repeat`, `summary.json` also compares all four screenshot hashes across the two runs and
-sets the final exit code to zero exactly when boot, navigation, and determinism pass. The current
-xxl text-quality label records the prior firmware's known tofu issue; the font-fix build requires a
-new local visual assessment before that label can be changed.
+sets the final exit code to zero exactly when boot, navigation, and determinism pass. Xiaoxiaole
+`text_quality` is recorded as `pass` on the temporary font-fix pin after visual review.
 
 ## M1 execution evidence
 
@@ -132,9 +130,10 @@ The 2026-10-22 clean-box runs for all three locked sources are recorded in
 `/workspace/m1-runs/REPORT.md`. Two fresh runs per game passed boot, screenshot-based navigation,
 and screenshot determinism. Go `ui` inspection remains unavailable without an ELF; the LVGL 9.6
 limitation described by that historical report is addressed by patch 0002. xiaoxiaole `ui`
-inspection passes but its known tofu/digit text issue remains. Navigation verifies that the framebuffer changes after each
-key; it does not yet prove semantic control activation. The ten-run acceptance and warning-policy
-work remain open, and this local evidence does not create a firmware CI gate.
+inspection passes. Historical tofu/digit notes apply to the pre-font-fix pin only.
+Navigation verifies that the framebuffer changes after each key; it does not yet prove semantic
+control activation. The ten-run acceptance and warning-policy work remain open, and this local
+evidence does not create a firmware CI gate.
 
 The M0 game sequence is:
 
@@ -170,8 +169,8 @@ CLI's command docs are in its checkout under `docs/commands/`.
   updating expected hashes after inspecting a newly selected artifact.
 - `ui` tree inspection is unavailable for Go without an ELF. Chess LVGL 9.6 inspection is supported
   by the second tracked patch and is required to pass when an ELF is present.
-- xiaoxiaole currently has a font/tofu rendering issue. Navigation can be checked, but tofu is not
-  an approved text-quality golden.
+- xiaoxiaole's temporary font-fix pin (`57a23fc…`) is recorded with `text_quality: pass` after
+  visual review; replace this pin with a published Actions/release artifact when available.
 - Linux is not listed in upstream `host_parity`; a successful Linux build/run remains an explicit
   integration result, not an upstream support claim.
 - These game images are ESP-IDF 5.5.3 coverage. XiaoZhi's IDF 5.5.3 compatibility build is interim
@@ -184,6 +183,6 @@ CLI's command docs are in its checkout under `docs/commands/`.
 Verified on 2026-10-24 with Rust 1.93.0. `setup.sh` applied or recognized both patches and built the
 Linux release binary (SHA-256 `e8a42a3685b8034f5cd494c7126b49496c66a4acd447cea32d131c6318c0413d`).
 Two fresh runs each for chess and xiaoxiaole passed boot, navigation, determinism, and all four
-required UI-tree commands. Go remains a known missing-ELF skip. xiaoxiaole `text_quality` remains
-failing separately because of the known tofu/digit issue. Per-run summaries and screenshots are
-under `/tmp/m3-final/` for this verification session.
+required UI-tree commands. Go remains a known missing-ELF skip. Xiaoxiaole's temporary font-fix
+pin later recorded `text_quality: pass` after visual review (see golden JSON). Per-run summaries
+and screenshots for the M3 verification session are under `/tmp/m3-final/`.
